@@ -167,6 +167,10 @@ def oichange_bargraph(closest_strike,annotation_label):
 
     return BarGraph
 
+
+
+
+
 def strangle_newline(data, fill, label, yAxisID,borderColor=None):
 	color_palette = [
 					Color.Red,
@@ -210,7 +214,7 @@ def strangle_newline(data, fill, label, yAxisID,borderColor=None):
 			self.pointRadius	= 1
 	return NewLineData
 
-def strangle_linegraph(label_ticker):
+def strangle_linegraph(label_ticker,scale_label_str):
 	class LineGraph(BaseChart):
 
 		type = ChartType.Line
@@ -286,7 +290,7 @@ def strangle_linegraph(label_ticker):
 					{
 						"scaleLabel": {
 											"display"	   : True,
-											"labelString"   : "strangle Price",
+											"labelString"   : scale_label_str,
 											"fontColor"	 : Color.Black
 						}, 
 						"id"			: "y2",
@@ -298,7 +302,6 @@ def strangle_linegraph(label_ticker):
 				]
 			}
 	return LineGraph
-
 
 def maxpain_newline(data, fill, label, yAxisID,borderColor=None):
 	color_palette = [
