@@ -1,6 +1,7 @@
 from pychartjs import BaseChart, ChartType, Color, Options
 
 import json
+from random import randint
 
 
 def oichange_newbardata(data,fill,borderWidth=None,backgroundColor=None, borderColor=None):
@@ -166,9 +167,6 @@ def oichange_bargraph(closest_strike,annotation_label):
             }
 
     return BarGraph
-
-
-
 
 
 def strangle_newline(data, fill, label, yAxisID,borderColor=None):
@@ -430,6 +428,156 @@ def maxpain_linegraph(label_ticker,scale_label_str):
 										"fontColor"	 : Color.Black
 						}, 
 						"id"			: "y1",
+					},
+					{
+						"scaleLabel": {
+											"display"	   : True,
+											"labelString"   : scale_label_str,
+											"fontColor"	 : Color.Black
+						}, 
+						"id"			: "y2",
+						"position"	  : "left",
+						"gridLines"	 : {
+										"display"	   : True
+						}
+					}
+				]
+			}
+	return LineGraph
+
+def pcr_newline(data, fill, label, yAxisID,borderColor=None):
+	color_palette = [
+					Color.Red,
+					Color.Blue,
+					Color.Purple,
+					Color.Maroon,
+					Color.Magenta,
+					Color.Teal,
+					Color.Navy,
+					Color.Orange,
+					Color.Cyan,
+					Color.Lime,
+					Color.Olive,
+					Color.Brown, 
+					Color.Pink,
+					Color.Lavender,
+					Color.Mint,
+					Color.Apricot,
+					Color.Beige,
+					Color.Yellow,
+					Color.White
+	]
+	# color_count = len(strangle_strike_list) # Changing
+	# color_count = len(color_count_list)
+	def get_random_hexcolor():
+		return '#{:06x}'.format(randint(0, 256**3))
+
+	borderColor = color_palette[borderColor]
+	# LineData  
+	class NewLineData: 
+		def __init__(self,): 
+			self.data		   = data
+			self.fill		   = fill
+			self.label		  = label
+			self.yAxisID		= yAxisID
+			#Border properties
+			self.borderColor	= borderColor
+			self.borderWidth	= 2
+			self.lineTension	= 0
+			#Point Properties
+			self.pointRadius	= 1
+	return NewLineData
+
+def pcr_linegraph(label_ticker,scale_label_str):
+	class LineGraph(BaseChart):
+		type = ChartType.Line
+		class labels:
+			xaxis_labels = list()
+
+		class data:
+			class linedata1:
+				# label		   = ticker # Changing
+				label = ""
+				data			= []
+				#Border properties
+				# borderColor	 = Color.Black
+				borderColor	 = Color.Hex("#7A9B0E")
+				borderWidth	 = 3
+				fill			= False
+				yAxisID		 = 'y1'
+				lineTension	 = 0
+				pointStyle = 'triangle'
+				borderDash	  = [3, 1] 
+				#Point Properties
+				pointRadius	 = 1
+
+			class linedata2:
+				# label		   = ticker # Changing
+				label = ""
+				data			= []
+				#Border properties
+				borderColor	 = Color.Hex("#DC143C")	#DC143C
+				# borderColor	 = Color.Green
+				borderWidth	 = 3
+				fill			= False
+				yAxisID		 = 'y2'
+				lineTension	 = 0
+				pointStyle = 'triangle'
+				borderDash	  = [3, 1] 
+				#Point Properties
+				pointRadius	 = 1
+
+		class options:
+			responsive = True
+			tooltips = {
+							"intersect"		 : False,
+			}
+			legend = {
+							'position'	  : 'top', 
+							'labels'		: {
+							'fontColor'	 : Color.Black, 
+							"boxWidth"	  : 35,
+							"fontSize"	  : 10,
+							"fontStyle"	 : "bold"
+						}
+			}
+			layout = {
+						"padding"   :  {
+										"left"	: 0,
+										"right"   : 0,
+										"top"	 : 0,
+										"bottom"  : 20
+					}
+			}
+			scales = {} # Changing
+	LineGraph.data.linedata1.label = label_ticker
+	LineGraph.data.linedata2.label = scale_label_str
+	LineGraph.options.scales = {
+				"xAxes": [
+						{   
+							"display"		: True,
+							"gridLines"	 : {
+								"display"	  : False,
+								"drawBorder"   : True
+						}, 
+					}
+				],
+
+				"yAxes": [
+					{
+						
+						"scaleLabel": {
+										"display"	   : True,
+										"labelString"   : label_ticker,
+										"fontColor"	 : Color.Black
+						}, 
+						"id"			: "y1",
+							"position"	  : "right",
+							"display"	   : True,
+							"gridLines"	 : {
+												"display"	 : False
+						}
+
 					},
 					{
 						"scaleLabel": {
