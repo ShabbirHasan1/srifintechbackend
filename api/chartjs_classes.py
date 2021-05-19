@@ -376,7 +376,7 @@ def maxpain_linegraph(label_ticker,scale_label_str):
 				# borderColor	 = Color.Green
 				borderWidth	 = 3
 				fill			= False
-				yAxisID		 = 'y2'
+				yAxisID		 = 'y1'
 				lineTension	 = 0
 				pointStyle = 'triangle'
 				borderDash	  = [3, 1] 
@@ -421,21 +421,12 @@ def maxpain_linegraph(label_ticker,scale_label_str):
 
 				"yAxes": [
 					{
-						"display"		: False,
-						"scaleLabel": {
-										"display"	   : False,
-										"labelString"   : label_ticker,
-										"fontColor"	 : Color.Black
-						}, 
-						"id"			: "y1",
-					},
-					{
 						"scaleLabel": {
 											"display"	   : True,
 											"labelString"   : scale_label_str,
 											"fontColor"	 : Color.Black
 						}, 
-						"id"			: "y2",
+						"id"			: "y1",
 						"position"	  : "left",
 						"gridLines"	 : {
 										"display"	   : True
