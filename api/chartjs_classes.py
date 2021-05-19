@@ -406,8 +406,8 @@ def maxpain_linegraph(label_ticker,scale_label_str):
 					}
 			}
 			scales = {} # Changing
-	LineGraph.data.linedata1.label = label_ticker
-	LineGraph.data.linedata2.label = scale_label_str
+	LineGraph.data.linedata1.label = scale_label_str
+	LineGraph.data.linedata2.label = label_ticker
 	LineGraph.options.scales = {
 				"xAxes": [
 						{   
