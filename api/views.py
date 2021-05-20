@@ -174,8 +174,8 @@ class MaxPain_History_Chart_API_View(APIView):
         ####################### chartjs ########################
         NewChart = maxpain_linegraph(label_ticker=ticker,scale_label_str="Maxpain")()
         NewChart.labels.xaxis_labels = main_df['date'].apply(lambda x:x.strftime("%b-%d")).to_list()
-        NewChart.data.linedata1.data = main_df['maxpain_value'].to_list()
-        NewChart.data.linedata2.data = main_df['price'].to_list()
+        NewChart.data.linedata1.data = main_df['price'].to_list()
+        NewChart.data.linedata2.data = main_df['maxpain_value'].to_list()
         ChartJSON_json = json.loads(NewChart.get())
         chart = ChartJSON_json
         print(ChartJSON_json)
