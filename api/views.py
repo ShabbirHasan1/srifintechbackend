@@ -138,7 +138,7 @@ class MaxPain_History_Chart_API_View(APIView):
 
         # expiry_date = dt.date(2021,7,29)
 
-        ltd = kf.get_last_traded_dates(ticker)['last_traded_date']
+        ltd = kf.get_last_traded_dates()['last_traded_date']
 
         data = list()
 
@@ -238,7 +238,7 @@ class PCR_History_Chart_API_View(APIView):
 
         today = dt.datetime.now().date()
         from_date = today - dt.timedelta(10)
-        ltd = kf.get_last_traded_dates(ticker)['last_traded_date']
+        ltd = kf.get_last_traded_dates()['last_traded_date']
 
         
         query_op = db.execute("select * from maxpain_history where date(expiry_date)='{}' and  date(date) >='{}' and ticker='{}' order by date desc".format(expiry_date , from_date , ticker)).fetchall()
