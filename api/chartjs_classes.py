@@ -357,7 +357,7 @@ def maxpain_linegraph(label_ticker,scale_label_str):
 				data			= []
 				#Border properties
 				# borderColor	 = Color.Black
-				borderColor	 = Color.Hex("#7A9B0E")
+				borderColor	 = Color.Hex("##DC143C")
 				borderWidth	 = 3
 				fill			= False
 				yAxisID		 = 'y1'
@@ -372,7 +372,7 @@ def maxpain_linegraph(label_ticker,scale_label_str):
 				label = ""
 				data			= []
 				#Border properties
-				borderColor	 = Color.Hex("#DC143C")	#DC143C
+				borderColor	 = Color.Hex("#7A9B0E")	
 				# borderColor	 = Color.Green
 				borderWidth	 = 3
 				fill			= False
