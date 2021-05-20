@@ -357,7 +357,7 @@ def maxpain_linegraph(label_ticker,scale_label_str):
 				data			= []
 				#Border properties
 				# borderColor	 = Color.Black
-				borderColor	 = Color.Hex("##DC143C")
+				borderColor	 = Color.Hex("#DC143C")
 				borderWidth	 = 3
 				fill			= False
 				yAxisID		 = 'y1'
@@ -492,7 +492,7 @@ def pcr_linegraph(label_ticker,scale_label_str):
 				data			= []
 				#Border properties
 				# borderColor	 = Color.Black
-				borderColor	 = Color.Hex("#7A9B0E")
+				borderColor	 = Color.Hex("#DC143C")
 				borderWidth	 = 3
 				fill			= False
 				yAxisID		 = 'y1'
@@ -507,7 +507,7 @@ def pcr_linegraph(label_ticker,scale_label_str):
 				label = ""
 				data			= []
 				#Border properties
-				borderColor	 = Color.Hex("#DC143C")	#DC143C
+				borderColor	 = Color.Hex("#7A9B0E")	
 				# borderColor	 = Color.Green
 				borderWidth	 = 3
 				fill			= False
@@ -541,8 +541,8 @@ def pcr_linegraph(label_ticker,scale_label_str):
 					}
 			}
 			scales = {} # Changing
-	LineGraph.data.linedata1.label = label_ticker
-	LineGraph.data.linedata2.label = scale_label_str
+	LineGraph.data.linedata1.label = scale_label_str
+	LineGraph.data.linedata2.label = label_ticker
 	LineGraph.options.scales = {
 				"xAxes": [
 						{   
@@ -559,11 +559,11 @@ def pcr_linegraph(label_ticker,scale_label_str):
 						
 						"scaleLabel": {
 										"display"	   : True,
-										"labelString"   : label_ticker,
+										"labelString"   : scale_label_str,
 										"fontColor"	 : Color.Black
 						}, 
 						"id"			: "y1",
-							"position"	  : "right",
+							"position"	  : "left",
 							"display"	   : True,
 							"gridLines"	 : {
 												"display"	 : False
@@ -573,11 +573,11 @@ def pcr_linegraph(label_ticker,scale_label_str):
 					{
 						"scaleLabel": {
 											"display"	   : True,
-											"labelString"   : scale_label_str,
+											"labelString"   : label_ticker,
 											"fontColor"	 : Color.Black
 						}, 
 						"id"			: "y2",
-						"position"	  : "left",
+						"position"	  : "right",
 						"gridLines"	 : {
 										"display"	   : True
 						}
