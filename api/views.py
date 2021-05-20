@@ -138,7 +138,7 @@ class MaxPain_History_Chart_API_View(APIView):
 
         # expiry_date = dt.date(2021,7,29)
 
-        ltd = kf.get_last_traded_dates(ticker)['last_traded_date']
+        ltd = kf.get_last_traded_dates()['last_traded_date']
 
         data = list()
 
@@ -174,8 +174,8 @@ class MaxPain_History_Chart_API_View(APIView):
         ####################### chartjs ########################
         NewChart = maxpain_linegraph(label_ticker=ticker,scale_label_str="Maxpain")()
         NewChart.labels.xaxis_labels = main_df['date'].apply(lambda x:x.strftime("%b-%d")).to_list()
-        NewChart.data.linedata1.data = main_df['maxpain_value'].to_list()
-        NewChart.data.linedata2.data = main_df['price'].to_list()
+        NewChart.data.linedata1.data = main_df['price'].to_list()
+        NewChart.data.linedata2.data = main_df['maxpain_value'].to_list()
         ChartJSON_json = json.loads(NewChart.get())
         chart = ChartJSON_json
         print(ChartJSON_json)
