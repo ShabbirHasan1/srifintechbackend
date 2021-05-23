@@ -8,13 +8,17 @@ from datetime import datetime
 from pychartjs import BaseChart, ChartType, Color, Options   
 from sqlalchemy import create_engine
 
-from api.classes import KiteFunctions , OIAnalysis , PostgreSQLOperations
+from api.classes import KiteAuthentication, KiteFunctions, MonteCarlo_Simulation, OIAnalysis, PostgreSQLOperations
 from api.chartjs_classes import *
 import pandas as pd
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
 import json
+from pytz import timezone
+from django.http import HttpResponse
+import numpy as np
+import sys
 
 
 def functions_initializer():
@@ -23,10 +27,8 @@ def functions_initializer():
     po =  PostgreSQLOperations()
     return kf,oi,po
 
-
 def Home(request):
     return render(request , 'index.html')
-
 
 class Open_Interst_Chart_API_View(APIView):
     # renderer_classes = [JSONRenderer]
@@ -39,7 +41,7 @@ class Open_Interst_Chart_API_View(APIView):
         print('\t\t\t' + expiry_date_str)
 
         logging.debug(pformat("Data in Post is # "))
-        # logging.debug(pformat(content))
+        logging.debug(pformat(request.data))
 
         ##################Input parameters #####################
         # ticker = content['ticker']
@@ -101,17 +103,15 @@ class Open_Interst_Chart_API_View(APIView):
         
         print(ChartJSON_str)
 
-        chart = json.loads(ChartJSON_str)
+        ChartJSON_json = json.loads(ChartJSON_str)
       
-        return Response(chart)
+        return Response(ChartJSON_json)
 
         # return ChartJSON_str
     
     def get(self , request):
         return Response({"ticker":"NIFTY","expiry_date":"2021-05-27"})
          
-
-
 class MaxPain_History_Chart_API_View(APIView):
     # renderer_classes = [JSONRenderer]
     def post(self , request):
@@ -121,7 +121,7 @@ class MaxPain_History_Chart_API_View(APIView):
         print('\t\t\t' + expiry_date_str)
 
         logging.debug(pformat("Data in Post is # "))
-       
+        logging.debug(pformat(request.data))
         expiry_date = datetime.strptime(expiry_date_str, '%Y-%m-%d').date()
         
         connection_string = 'postgresql://doadmin:or5ka898vk8r1wdi@srifintech-db-do-user-8454140-0.b.db.ondigitalocean.com:25060/defaultdb'
@@ -177,9 +177,9 @@ class MaxPain_History_Chart_API_View(APIView):
         NewChart.data.linedata1.data = main_df['maxpain_value'].to_list()
         NewChart.data.linedata2.data = main_df['price'].to_list()
         ChartJSON_json = json.loads(NewChart.get())
-        chart = ChartJSON_json
+        # chart = ChartJSON_json
         print(ChartJSON_json)
-        return Response(chart)
+        return Response(ChartJSON_json)
              
         ####################### chartjs ########################
 
@@ -187,7 +187,6 @@ class MaxPain_History_Chart_API_View(APIView):
     
     def get(self , request):
         return Response({"ticker":"NIFTY","expiry_date":"2021-07-29"})
-
 
 class PCR_Day_API_View(APIView):
     def post(self , request):
@@ -211,14 +210,9 @@ class PCR_Day_API_View(APIView):
         else: 
             pcr = round(float(put_oi / call_oi),2)
 
-        pcr_value = {'pcr':pcr}
-        pcr_json = json.dumps(pcr_value)
-        pcr_json = json.loads(pcr_json)
-
-        return Response(pcr_json)
+        return Response(pcr)
     def get(self , request):
         return Response({"ticker":"NIFTY","expiry_date":"2021-05-27"})
-
 
 class PCR_History_Chart_API_View(APIView):
     def post(self , request):
@@ -228,6 +222,7 @@ class PCR_History_Chart_API_View(APIView):
         print('\t\t\t' + expiry_date_str)
 
         logging.debug(pformat("Data in Post is # "))
+        logging.debug(pformat(request.data))
        
         expiry_date = datetime.strptime(expiry_date_str, '%Y-%m-%d').date()
 
@@ -280,11 +275,303 @@ class PCR_History_Chart_API_View(APIView):
         NewChart.data.linedata1.data = main_df['pcr_value'].to_list()
         NewChart.data.linedata2.data = main_df['price'].to_list()
         ChartJSON_json = json.loads(NewChart.get())
-        chart = ChartJSON_json
-        print(ChartJSON_json)
-        return Response(chart)
+       
+        return Response(ChartJSON_json)
 
         
 
     def get(self , request):
         return Response({"ticker":"NIFTY","expiry_date":"2021-05-27"})
+
+class Login(APIView):
+    def get(self , request):
+        request_token = request.GET.get("request_token")
+        print(request_token)
+
+        if request_token is None:
+            # login_url = 'http://127.0.0.1:5000/kitelogin'
+            login_url='https://kite.trade/connect/login?api_key=ydq5afgjqoqvj0up'
+            context = {
+                'login_url':login_url
+            }
+            return render(request , 'login_index.html', context)
+
+class Kite_Login(APIView):
+    def get(self , request):
+        request_token = request.GET.get("request_token")
+        if request_token is None:
+            ka = KiteAuthentication()
+            ka.debug=True
+            if ka.kite_login_success:
+                # return 'Success'
+                return Response('success')
+        else:
+            logging.info('I received request token # ', request_token)
+            ka = KiteAuthentication(request_token=request_token)
+
+            if ka.kite_login_success:
+                return Response('success')
+
+                # return 'Success'
+            current_time = dt.datetime.now().astimezone(timezone('Asia/Kolkata')).strftime('%H:%M')
+            # return_text = 'Session established for today @ ' + str(current_time) + \
+            return_text = 'Session established with access token # ' + ka.kite.access_token
+            return Response(return_text)
+
+class Get_MonteCarlo_Simulation(APIView):
+    def post(self , request):
+        logging.debug(pformat("Beginning of the MonteCarlo Simulation..."))
+        logging.debug(pformat("Data in Post is # "))
+        logging.debug(pformat(request.data))
+
+        ##################Input parameters #####################
+        ticker = request.data.get('ticker')
+        simulation_days = int(request.data.get('simulation_days'))
+        returns_from = request.data.get('returns_from')
+        start_date = datetime.strptime(returns_from, '%Y-%m-%d').date()
+        ##################Input parameters #####################
+        todays_date = dt.datetime.now().date()
+        logging.debug(pformat("\nTicker # {0}\nSimulation Days # {1}\nReturns Start Date # {2}".format(ticker, simulation_days, start_date)))
+        predict_days = simulation_days
+        history_days = (todays_date - start_date).days
+        live_price_ind = 'N'
+        mc = MonteCarlo_Simulation()
+        montecarlo_result_df = mc.monte_carlo_prediction(ticker=ticker, predict_days=predict_days, history_days=history_days,
+                                                    live_price_ind=live_price_ind,chartjson=True)
+
+        upper_boundary = montecarlo_result_df.max().max()
+        lower_boundary = montecarlo_result_df.min().min()
+        upper_boundary = int(np.round(upper_boundary, 0))
+        lower_boundary = int(np.round(lower_boundary, 0))
+
+        
+        logging.debug(pformat("\n"))
+        logging.debug(pformat("Upper Boundary from Dataframe # ", upper_boundary))
+        logging.debug(pformat("Lower Boundary from Dataframe # ", lower_boundary))
+            
+        
+
+        
+        ####################### chartjs ########################
+        title1 = "Simulation for " + ticker 
+        title2 = "Upper Boundary : " + str(upper_boundary) + "      Lower Boundary : " + str(lower_boundary)
+        color_palette = [
+                            Color.Red,
+                            Color.Blue,
+                            Color.Purple,
+                            Color.Maroon,
+                            Color.Magenta,
+                            Color.Teal,
+                            Color.Navy,
+                            Color.Orange,
+                            Color.Cyan,
+                            Color.Lime,
+                            Color.Olive,
+                            Color.Brown, 
+                            Color.Pink,
+                            Color.Lavender,
+                            Color.Mint,
+                            Color.Apricot,
+                            Color.Beige,
+                            Color.Yellow,
+                            Color.White
+
+        ]
+        color_count = predict_days
+
+        def get_random_hexcolor():
+            return '#{:06x}'.format(randint(0, 256**3))
+
+
+        # LineData  
+        class NewLineData: 
+            def __init__(self, data, fill, label, yAxisID,borderColor=None): 
+                self.data           = data
+                self.fill           = fill
+                self.label          = label
+                self.yAxisID        = yAxisID
+                #Border properties
+                self.borderColor    = borderColor
+                self.borderWidth    = 2
+                self.lineTension    = 0
+                #Point Properties
+                self.pointRadius    = 1
+
+        class LineGraph(BaseChart):
+
+            type = ChartType.Line
+            
+            class labels:
+                xaxis_labels = list()
+
+            class data:
+                class linedata:
+                    label           = ticker
+                    data            = []
+                    #Border properties
+                    borderColor     = Color.Black
+                    borderColor     = Color.Hex("#7A9B0E")
+                    borderWidth     = 3
+                    
+                    fill            = False
+                    yAxisID         = 'y1'
+                    lineTension     = 0
+                    pointStyle = 'triangle'
+                    borderDash      = [3, 1] 
+                    #Point Properties
+                    pointRadius     = 1
+
+
+            class options:
+                responsive = True
+                
+                title = {
+                                "display"       : True,
+                                "text"          : [title1, title2],
+                                "fontSize"      : 18,
+                                "fontColor"     : Color.Black,
+                                "padding"       : 0
+                }
+                tooltips = {    
+                                "enabled"       : False,
+                                "intersect"     : False,
+                }
+                legend = {
+                                "display"       : False,
+                                'position'      : 'top', 
+                                'labels'        : {
+                                'fontColor'     : Color.Black, 
+                                "boxWidth"      : 35,
+                                "fontSize"      : 10,
+                                "fontStyle"     : "bold"
+                            }
+                }
+                
+                layout = {
+                            "padding"   :  {
+                                            "left"    : 0,
+                                            "right"   : 0,
+                                            "top"     : 0,
+                                            "bottom"  : 20
+                        }
+                }
+
+
+                scales = {
+
+                    "xAxes": [
+                            {   
+                                "scaleLabel": {
+                                                "display"       : True,
+                                                "labelString"   : "Days",
+                                                "fontColor"     : Color.Black,
+                                                "fontSize"      : 14,
+                                                "fontStyle"     : "bold"
+                                }, 
+                                "display"           : True,
+                                "gridLines"         : {
+                                    "display"       : False,
+                                    "drawBorder"    : True
+                                }, 
+                                
+                        }
+                    ],
+                    "yAxes": [
+                            {
+                                "scaleLabel": {
+                                                "display"       : True,
+                                                "labelString"   : "Price",
+                                                "fontColor"     : Color.Black,
+                                                "fontSize"      : 14,
+                                                "fontStyle"     : "bold"
+                                }, 
+                                "id"            : "y1",
+                                "position"      : "left",
+                                "display"       : True,
+                                "gridLines"     : {
+                                                    "display"     : False
+                            }
+                        }
+                        # {
+                        #     "scaleLabel": {
+                        #                         "display"       : True,
+                        #                         "labelString"   : "Price",
+                        #                         "fontColor"     : Color.Black
+                        #     }, 
+                        #     "id"            : "y2",
+                        #     "position"      : "left",
+                        #     "gridLines"     : {
+                        #                     "display"       : True
+                        #     }
+                        # }
+                    ]
+                }
+
+
+        NewChart = LineGraph()
+        NewChart.labels.xaxis_labels = montecarlo_result_df.index.to_list()
+        # NewChart.data.linedata.data = montecarlo_result_df[ticker].to_list()
+        ChartJSON_json = json.loads(NewChart.get())
+
+        i = 0
+        for day in range(mc.simulations):
+            ###Adding New Line
+            newline = NewLineData(  data=montecarlo_result_df[day].to_list(), 
+                                    fill=False, 
+                                    label=day, 
+                                    yAxisID="y1", 
+                                    # borderColor=color_palette[i % color_count]
+                                    borderColor=Color.Hex(get_random_hexcolor())
+            )
+            newline_json = json.loads(json.dumps(newline.__dict__))
+            ChartJSON_json['data']['datasets'].append(newline_json)
+            i += 1
+        
+
+        # ChartJSON_str = json.dumps(ChartJSON_json) 
+        # logging.debug(pformat("Rendering chartjson string..."))
+        # ####################### chartjs ########################
+
+        return Response(ChartJSON_json)
+    def get(self , request):
+        return Response({"ticker":"NIFTY","simulation_days":30,"returns_from":"2010-01-01"})
+
+class Get_KiteAuth(APIView):
+    def get(self , request):
+        logging.debug(pformat('Authentication in progress...'))
+        ka = KiteAuthentication()
+        user_profile = ka.kite.profile()
+        logging.debug(pformat(user_profile))
+        ######## converting object to json########
+        user_profile_json_str = json.dumps(user_profile)
+        user_pofile_json = json.loads(user_profile_json_str)
+        ######## converting object to json########
+
+        return Response(user_pofile_json)
+
+class Get_ltp_ticker(APIView):
+    def post(self , request):
+        logging.debug(pformat("Fetching Last Traded price..."))
+        logging.debug(pformat("Data in Post is # "))
+        logging.debug(pformat(request.data))
+
+        ##################Input parameters #####################
+        ticker = request.data.get('ticker')
+        ticker = ticker.upper()
+        ##################Input parameters #####################
+
+        try:
+            kf = KiteFunctions()
+        except Exception as e:
+            return_text = 'Error encountered # ' + e
+            return return_text
+        ltp = kf.get_ltp(ticker=ticker)
+
+        return Response(str(ltp))
+    
+    def get(self , request):
+        return Response({'ticker':'NIFTY'})
+
+
+
+
