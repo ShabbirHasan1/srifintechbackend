@@ -12,6 +12,7 @@ cryptography==3.4.7
 cycler==0.10.0
 dj-database-url==0.5.0
 Django==3.2.1
+django-cors-headers==3.7.0
 djangorestframework==3.12.4
 enum34==1.1.10
 Flask==1.1.2
@@ -55,4 +56,3 @@ urllib3==1.26.4
 Werkzeug==2.0.0
 yfinance==0.1.59
 zope.interface==5.4.0
-django-cors-headers==3.7.0
