@@ -96,5 +96,8 @@ def implied_volatility(opt_type, s, k, t, rfr, price, div=0):
                     option_price(opt_type, s, k, t, rfr, sigma, div) - price)
         return sigma
 
-    iv = black_scholes(opt_type, s, k, t, rfr, sigma, price, epsilon, div)
-    return round((iv*100), 2)
+    try:
+        iv = black_scholes(opt_type, s, k, t, rfr, sigma, price, epsilon, div)
+        return round((iv*100), 2)
+    except:
+        return None

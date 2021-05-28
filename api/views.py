@@ -576,14 +576,16 @@ class Get_ltp_ticker(APIView):
 
 
 class Option_Chain(APIView):
-    def post(self , request):
+    def post(self, request):
         # ********************************* INPUT PARAMS *******************************************
         try:
             ticker = [
                 request.data.get("ticker", None),
             ]
             expiry = [
-                datetime.strptime(request.data.get("expiry_date", None), "%Y-%m-%d").date(),
+                datetime.strptime(
+                    request.data.get("expiry_date", None), "%Y-%m-%d"
+                ).date(),
             ]
         except Exception as e:
             return "Error encountered while reading input request:\n" + str(e)
@@ -624,7 +626,9 @@ class Option_Chain(APIView):
                         out_df,
                         pd.DataFrame(
                             kf.kite.quote(
-                                df1.iloc[i - interval : i]["exchange_tradingsymbol"].tolist()
+                                df1.iloc[i - interval : i][
+                                    "exchange_tradingsymbol"
+                                ].tolist()
                             )
                         ).transpose(),
                     ]
@@ -693,14 +697,39 @@ class Option_Chain(APIView):
                         ],
                         axis=1,
                     ).tolist(),
-                    columns=["chng", "bid qty", "bid price", "ask price", "ask qty", "iv"],
+                    columns=[
+                        "chng",
+                        "bid qty",
+                        "bid price",
+                        "ask price",
+                        "ask qty",
+                        "iv",
+                    ],
                 ),
             ],
             axis=1,
         ).drop(["depth", "ohlc"], axis=1)
 
+        def func(var):
+            if var in [float("inf"), float("-inf")]:
+                return None
+            x = "%.2f" % var
+            if len(str(x)) > 7:
+                return None
+            else:
+                return x
+
+        out_df["iv"] = out_df["iv"].apply(lambda var: func(var))
+
         out_df.set_index(["strike", "instrument_type"], inplace=True)
-        return Response(out_df.transpose().to_json())
+
+        return Response(
+            out_df.fillna("-")
+            .round(2)
+            .groupby(level=0)
+            .apply(lambda df: df.xs(df.name).to_dict("index"))
+            .to_dict()
+        )
 
 
 
