@@ -1,5 +1,9 @@
 # Srifintechbackend
-[167.71.231.30](http://167.71.231.30/) 
+ip = [167.71.231.30](http://167.71.231.30/) 
+#### refrences 
+- https://tinyurl.com/69h7cbxw 
+- https://www.youtube.com/watch?v=US9BkvzuIxw
+
 
 ### 1. Login into the vps using ssh key 
 
