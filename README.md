@@ -50,11 +50,11 @@ ip = [167.71.231.30](http://167.71.231.30/)
 >    Description=gunicorn daemon
 >    After=network.target
 
->[Service]
-User=username
-Group=username
-WorkingDirectory=/home/username/srifintechbackend
-ExecStart=/home/username/srifintechbackend/deploy/bin/gunicorn --access-logfile - --workers 3 --bind unix:/home/username/srifintechbackend/srifintechbackend.sock srifintechbackend.wsgi:application
+>   [Service]
+>   User=username
+>	Group=username
+>	WorkingDirectory=/home/username/srifintechbackend
+>	ExecStart=/home/username/srifintechbackend/deploy/bin/gunicorn --access-logfile - --workers 3 --bind unix:/home/username/srifintechbackend/srifintechbackend.sock >srifintechbackend.wsgi:application
 
 >[Install]
 WantedBy=multi-user.target
@@ -79,15 +79,15 @@ WantedBy=multi-user.target
     server_name 167.71.231.30;
 
 >    location = /favicon.ico { access_log off; log_not_found off; }
-    location /static/ {
-        root /home/username/srifintechbackend;
-    }
+>    location /static/ {
+>        root /home/username/srifintechbackend;
+>    }
 
 >    location / {
-        include proxy_params;
-        proxy_pass http://unix:/home/username/srifintechbackend/srifintechbackend.sock;
-    }
-}
+>       include proxy_params;
+>       proxy_pass http://unix:/home/username/srifintechbackend/srifintechbackend.sock;
+>   }
+>}
 
     :~$ sudo ln -s /etc/nginx/sites-available/srifintechbackend /etc/nginx/sites-enabled
 
