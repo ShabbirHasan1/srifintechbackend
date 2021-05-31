@@ -1,7 +1,7 @@
 # Srifintechbackend
 ip = [167.71.231.30](http://167.71.231.30/) 
 #### refrences 
-- https://tinyurl.com/69h7cbxw 
+- https://www.digitalocean.com/community/tutorials/how-to-set-up-django-with-postgres-nginx-and-gunicorn-on-ubuntu-16-04
 - https://www.youtube.com/watch?v=US9BkvzuIxw
 
 
