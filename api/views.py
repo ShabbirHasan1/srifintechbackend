@@ -704,6 +704,151 @@ class Get_Straddle_Prices(APIView):
         return Response(ChartJSON_json)
 
 
+class Get_Strangle_Prices(APIView):
+    def post(self, request):
+        logging.debug(pformat('Beginning of strangle api...'))
+        logging.debug(pformat(datetime.now()))
+        sc_start_time = datetime.now()
+        content = request.data
+        logging.info(pformat("Data in Post for /strangleprices is # "))
+        logging.info(pformat(content))
 
+        ####################### Input parameters #####################
+        try:
+            ticker = content.get('ticker',None).upper()
+            expiry_date = datetime.strptime(content.get('expiry_date',None),
+                            '%Y-%m-%d').date()
+
+            # Creates a list of dictionaries of the form:
+            # [{'CE': 16750.0, 'PE': 12200.0, 'label': 'Pair1'},{'CE': 16700.0, 'PE': 12250.0, 'label': 'Pair2'}]
+            strangle_strike_list = [{'CE':float(val.get("call_strike",None)),
+                                    'PE':float(val.get("put_strike",None)),
+                                    'label':str(key).capitalize()}
+                                    for key,val in content.get('strangle_strikes',{}).items()]
+
+        except Exception as e:
+            return 'Error encountered while reading input request:\n' + e
+        intraday_ind = content.get('intraday_ind',True)
+        ####################### Input parameters #####################
+
+        days = 10
+        kf = KiteFunctions()
+
+        # Interval = 5 mins if intraday set to True else Interval = 10 days
+        start_date,interval = (kf.get_last_traded_dates()['last_traded_date'],kf.interval_1minute)\
+                                if intraday_ind \
+                                else (dt.datetime.now().date()- dt.timedelta(days=days),
+                                kf.interval_day)
+        ####### Logging input params ######
+
+        logging.debug(pformat(ticker))
+        logging.debug(pformat(expiry_date))
+        logging.debug(pformat(strangle_strike_list))
+        logging.debug(pformat(intraday_ind))
+        logging.debug(pformat(start_date))
+
+        ####### Logging input params ######
+
+        final_strangle_df = pd.DataFrame()
+        for single_dict in strangle_strike_list:
+            logging.debug(pformat("Printing single dict:"))
+            logging.debug(pformat(single_dict))
+
+
+            strangle_list = kf.master_instruments_df[
+                            (kf.master_instruments_df['name'] == ticker)
+                            & (((kf.master_instruments_df['strike'] == single_dict['CE'])
+                            & (kf.master_instruments_df['instrument_type'] =='CE')) 
+                            | ((kf.master_instruments_df['strike'] == single_dict['PE'])
+                            & (kf.master_instruments_df['instrument_type'] =='PE')))
+                            & (kf.master_instruments_df['expiry'] == expiry_date)
+                            ]['tradingsymbol'].to_list()
+
+
+            logging.debug(pformat("Strangle list obtained:"))
+            logging.debug(pformat(strangle_list))
+
+            strangle_prices_df = pd.DataFrame()
+            for strangle_instrument in strangle_list:
+                price_df = kf.get_price_history(ticker=strangle_instrument,
+                                                start_date=start_date,
+                                                end_date=dt.datetime.now().date(),
+                                                interval=interval)
+
+                logging.debug(pformat(price_df))
+                price_df[strangle_instrument] = price_df['close']
+                price_df.drop(columns=['open','low','high','close', 'volume'], inplace=True)
+                logging.debug(pformat(price_df))
+
+
+                # Copy price_df  if strangle_prices_df is empty else 
+                #  append/concat price_df into strangle_prices_df
+                strangle_prices_df = price_df.copy() if strangle_prices_df.empty else \
+                                    pd.concat([price_df, strangle_prices_df], axis=1, join='inner')
+
+                logging.debug(pformat(strangle_prices_df))
+
+
+            # eg: column header label would be "pair1" for CE -> 16750.0 and PE -> 12200.0
+            strangle_prices_df[f"{single_dict['label']}"] = strangle_prices_df.sum(axis=1)
+            final_strangle_df = strangle_prices_df.copy() if final_strangle_df.empty else \
+                                    pd.concat([final_strangle_df, strangle_prices_df], axis=1, join='inner')
+            final_strangle_df = final_strangle_df.apply(lambda x:round(x,2),axis=1)
+            
+
+            logging.debug(pformat(final_strangle_df))
+
+        base_ticker = "NIFTY 50" if ticker.upper() == "NIFTY" else \
+                        "NIFTY BANK" if ticker.upper() == "BANKNIFTY" else \
+                        ticker.upper() 
+
+        ticker_df = kf.get_price_history(ticker=base_ticker,
+                                        start_date=start_date,
+                                        end_date=dt.datetime.now().date(),
+                                        interval=interval)
+
+        logging.debug(pformat(ticker_df))
+
+        if not ticker_df.empty:
+            ticker_df.drop(columns=['open', 'high', 'low', 'volume'], inplace=True)
+            ticker_df.rename(columns={'close': ticker}, inplace=True)
+        else:
+            logging.debug(pformat('Data for Base ticker is not fetched...'))
+
+        final_strangle_df = pd.concat([final_strangle_df, ticker_df], axis=1, join='inner')
+        logging.debug(pformat(final_strangle_df))
+
+        final_strangle_df.index = final_strangle_df.index.strftime("%H:%M") if intraday_ind \
+                                    else final_strangle_df.index.strftime("%b-%d")
+
+        logging.debug(pformat(final_strangle_df))
+           
+
+        ####################### chartjs ########################
+        NewChart = strangle_linegraph(label_ticker=ticker,scale_label_str="Strangle Prices")()
+        NewChart.labels.xaxis_labels = final_strangle_df.index.to_list()
+        NewChart.data.linedata.data = final_strangle_df[ticker].to_list()
+        ChartJSON_json = json.loads(NewChart.get())
+        logging.debug(pformat(ChartJSON_json))
+
+        color_count = len(strangle_strike_list)
+        for ind,single_dict in enumerate(strangle_strike_list):
+            ###Adding New Line
+            newline = strangle_newline(data=final_strangle_df[f"{single_dict['label']}"].to_list(), 
+                                    fill=False, 
+                                    label=f"{single_dict['label']}", 
+                                    yAxisID="y2",
+                                    borderColor = ind % color_count)()
+            newline_json = json.loads(json.dumps(newline.__dict__))
+            logging.debug(pformat(newline_json))
+            ChartJSON_json['data']['datasets'].append(newline_json)
+
+        logging.debug(pformat(datetime.now() - sc_start_time))
+        logging.debug(pformat("Rendering chartjson string..."))
+       
+
+        ####################### chartjs ########################
+
+        return Response(ChartJSON_json)
 
 

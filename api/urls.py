@@ -14,5 +14,6 @@ urlpatterns = [
    url( r'^kiteauth/?$', views.Get_KiteAuth.as_view(),name ='kiteauth') ,
    url( r'^ltp/?$', views.Get_ltp_ticker.as_view(),name ='ltp') ,
    url( r'^straddleprices/?$', views.Get_Straddle_Prices.as_view(),name ='straddle') ,
+   url( r'^strangleprices/?$', views.Get_Strangle_Prices.as_view(),name ='strangle') ,
    url( r'$', views.Home, name ='home'),
 ]
