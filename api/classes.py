@@ -44,6 +44,7 @@ class KiteAuthentication:
         self.kiteauth_table_name = 'kiteauth'
         self.ticker = ''
         self.kite_login_success = False
+        self.pg = None
         if self.request_token is None:
             self.read_access_details_usingdb()
         self.get_login()
@@ -51,8 +52,8 @@ class KiteAuthentication:
     def read_access_details_usingdb(self):
         
         ####PLease uncomment here later###
-        pg = PostgreSQLOperations()
-        df = pg.get_postgres_data_df_with_condition(table_name=self.kiteauth_table_name) 
+        self.pg = PostgreSQLOperations()
+        df = self.pg.get_postgres_data_df_with_condition(table_name=self.kiteauth_table_name) 
         self.access_token = df['access_token'].values[0]
         ###PLease uncomment here later###
         
