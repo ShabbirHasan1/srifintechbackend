@@ -574,7 +574,7 @@ class Get_ltp_ticker(APIView):
 
 class Get_Straddle_Prices(APIView):
     def post(self, request):
-        logging.debug(pformat('Beginning of straddle api...'))
+        logging.debug(pformat("Beginning of straddle api..."))
 
         content = request.data
         logging.debug(pformat("Data in Post for /straddleprices is # "))
@@ -589,82 +589,106 @@ class Get_Straddle_Prices(APIView):
 
         except Exception as e:
             return "Error encountered while reading input request:\n" + e
-        straddle_strike_list = content.get('strikes_list',[])
-        intraday_ind = content.get('intraday_ind',True)
+        straddle_strike_list = content.get("strikes_list", [])
+        intraday_ind = content.get("intraday_ind", True)
         ####################### Input parameters #####################
 
         kf = KiteFunctions()
         days = 10
         today_date = dt.datetime.now().date()
         if intraday_ind:
-            start_date = kf.get_last_traded_dates()['last_traded_date']
+            start_date = kf.get_last_traded_dates()["last_traded_date"]
             interval = kf.interval_5minute
         else:
             start_date = dt.datetime.now().date() - dt.timedelta(days=days)
             interval = kf.interval_day
-            
+
         end_date = today_date
 
-        logging.debug(pformat("\n\nTicker # {0}\nExpiry Date # {1}\nStraddle List # {2}\nIntraday Indicator # {3}\nStart Date # {4}\nEnd Date # {5}".format(ticker, expiry_date, straddle_strike_list, intraday_ind,
-                                                                                                                                            start_date,end_date)))
+        logging.debug(
+            pformat(
+                "\n\nTicker # {0}\nExpiry Date # {1}\nStraddle List # {2}\nIntraday Indicator # {3}\nStart Date # {4}\nEnd Date # {5}".format(
+                    ticker,
+                    expiry_date,
+                    straddle_strike_list,
+                    intraday_ind,
+                    start_date,
+                    end_date,
+                )
+            )
+        )
 
-        
         final_straddle_df = pd.DataFrame()
         for strike in straddle_strike_list:
             filter_df = kf.master_instruments_df[
-                                                    (kf.master_instruments_df['name']      == ticker)
-                                                & (kf.master_instruments_df['strike']    == strike)
-                                                & (kf.master_instruments_df['expiry']    == expiry_date)
-                                                ]
+                (kf.master_instruments_df["name"] == ticker)
+                & (kf.master_instruments_df["strike"] == strike)
+                & (kf.master_instruments_df["expiry"] == expiry_date)
+            ]
 
             logging.debug(pformat(filter_df))
 
-            straddle_list = filter_df['tradingsymbol'].to_list()
+            straddle_list = filter_df["tradingsymbol"].to_list()
 
-            logging.debug(pformat("Straddle List {0} for strike {1}".format(straddle_list, strike)))
+            logging.debug(
+                pformat(
+                    "Straddle List {0} for strike {1}".format(straddle_list, strike)
+                )
+            )
 
             straddle_prices_df = pd.DataFrame()
             for straddle_instrument in straddle_list:
-                price_df = kf.get_price_history(    ticker=straddle_instrument,
-                                                    start_date=start_date,
-                                                    end_date=end_date,
-                                                    interval=interval)
-                price_df[straddle_instrument] = price_df['close']        
-                price_df.drop(columns=['open','low','high','close', 'volume'], inplace=True)
+                price_df = kf.get_price_history(
+                    ticker=straddle_instrument,
+                    start_date=start_date,
+                    end_date=end_date,
+                    interval=interval,
+                )
+                price_df[straddle_instrument] = price_df["close"]
+                price_df.drop(
+                    columns=["open", "low", "high", "close", "volume"], inplace=True
+                )
 
                 if straddle_prices_df.empty:
                     straddle_prices_df = price_df.copy()
                 else:
-                    straddle_prices_df = pd.concat([price_df, straddle_prices_df], axis=1, join='inner')
+                    straddle_prices_df = pd.concat(
+                        [price_df, straddle_prices_df], axis=1, join="inner"
+                    )
 
             straddle_prices_df[strike] = straddle_prices_df.sum(axis=1)
 
             if final_straddle_df.empty:
                 final_straddle_df = straddle_prices_df.copy()
             else:
-                final_straddle_df = pd.concat([final_straddle_df, straddle_prices_df], axis=1, join='inner')
+                final_straddle_df = pd.concat(
+                    [final_straddle_df, straddle_prices_df], axis=1, join="inner"
+                )
 
         if ticker.upper() == "NIFTY":
             base_ticker = "NIFTY 50"
         elif ticker.upper() == "BANKNIFTY":
             base_ticker = "NIFTY BANK"
         else:
-            base_ticker = ticker.upper()   
+            base_ticker = ticker.upper()
 
-        ticker_df = kf.get_price_history(   ticker=base_ticker,
-                                            start_date=start_date,
-                                            end_date=end_date,
-                                            interval=interval)
+        ticker_df = kf.get_price_history(
+            ticker=base_ticker,
+            start_date=start_date,
+            end_date=end_date,
+            interval=interval,
+        )
 
         if not ticker_df.empty:
-            ticker_df.drop(columns=['open', 'high', 'low', 'volume'], inplace=True)
-            ticker_df.rename(columns={'close': ticker}, inplace=True)
+            ticker_df.drop(columns=["open", "high", "low", "volume"], inplace=True)
+            ticker_df.rename(columns={"close": ticker}, inplace=True)
         else:
-            logging.debug(pformat('Data for Base ticker is not fetched...'))
+            logging.debug(pformat("Data for Base ticker is not fetched..."))
 
-        final_straddle_df = pd.concat([final_straddle_df, ticker_df], axis=1, join='inner')
-        final_straddle_df = final_straddle_df.apply(lambda x:round(x,2),axis=1)
-
+        final_straddle_df = pd.concat(
+            [final_straddle_df, ticker_df], axis=1, join="inner"
+        )
+        final_straddle_df = final_straddle_df.apply(lambda x: round(x, 2), axis=1)
 
         # straddle_prices_df.reset_index(inplace=True)
 
@@ -680,32 +704,36 @@ class Get_Straddle_Prices(APIView):
         straddle_linegraph = strangle_linegraph
         straddle_newline = strangle_newline
 
-        NewChart = straddle_linegraph(label_ticker=ticker,scale_label_str="Straddle Prices")()
+        NewChart = straddle_linegraph(
+            label_ticker=ticker, scale_label_str="Straddle Prices"
+        )()
         NewChart.labels.xaxis_labels = final_straddle_df.index.to_list()
         NewChart.data.linedata.data = final_straddle_df[ticker].to_list()
         ChartJSON_json = json.loads(NewChart.get())
 
         color_count = len(straddle_strike_list)
 
-        for ind,strike_item in enumerate(straddle_strike_list):
+        for ind, strike_item in enumerate(straddle_strike_list):
             ###Adding New Line
-            newline = straddle_newline(  data=final_straddle_df[strike_item].to_list(), 
-                                    fill=False, 
-                                    label=strike_item, 
-                                    yAxisID="y2", 
-                                    borderColor=ind % color_count
+            newline = straddle_newline(
+                data=final_straddle_df[strike_item].to_list(),
+                fill=False,
+                label=strike_item,
+                yAxisID="y2",
+                borderColor=ind % color_count,
             )()
             newline_json = json.loads(json.dumps(newline.__dict__))
-            ChartJSON_json['data']['datasets'].append(newline_json)
+            ChartJSON_json["data"]["datasets"].append(newline_json)
 
         logging.debug(pformat("Rendering chartjson string..."))
         ####################### chartjs ########################
 
         return Response(ChartJSON_json)
 
+
 class Get_Strangle_Prices(APIView):
     def post(self, request):
-        logging.debug(pformat('Beginning of strangle api...'))
+        logging.debug(pformat("Beginning of strangle api..."))
         logging.debug(pformat(datetime.now()))
         sc_start_time = datetime.now()
         content = request.data
@@ -714,30 +742,36 @@ class Get_Strangle_Prices(APIView):
 
         ####################### Input parameters #####################
         try:
-            ticker = content.get('ticker',None).upper()
-            expiry_date = datetime.strptime(content.get('expiry_date',None),
-                            '%Y-%m-%d').date()
+            ticker = content.get("ticker", None).upper()
+            expiry_date = datetime.strptime(
+                content.get("expiry_date", None), "%Y-%m-%d"
+            ).date()
 
             # Creates a list of dictionaries of the form:
             # [{'CE': 16750.0, 'PE': 12200.0, 'label': 'Pair1'},{'CE': 16700.0, 'PE': 12250.0, 'label': 'Pair2'}]
-            strangle_strike_list = [{'CE':float(val.get("call_strike",None)),
-                                    'PE':float(val.get("put_strike",None)),
-                                    'label':str(key).capitalize()}
-                                    for key,val in content.get('strangle_strikes',{}).items()]
+            strangle_strike_list = [
+                {
+                    "CE": float(val.get("call_strike", None)),
+                    "PE": float(val.get("put_strike", None)),
+                    "label": str(key).capitalize(),
+                }
+                for key, val in content.get("strangle_strikes", {}).items()
+            ]
 
         except Exception as e:
-            return 'Error encountered while reading input request:\n' + e
-        intraday_ind = content.get('intraday_ind',True)
+            return "Error encountered while reading input request:\n" + e
+        intraday_ind = content.get("intraday_ind", True)
         ####################### Input parameters #####################
 
         days = 10
         kf = KiteFunctions()
 
         # Interval = 5 mins if intraday set to True else Interval = 10 days
-        start_date,interval = (kf.get_last_traded_dates()['last_traded_date'],kf.interval_1minute)\
-                                if intraday_ind \
-                                else (dt.datetime.now().date()- dt.timedelta(days=days),
-                                kf.interval_day)
+        start_date, interval = (
+            (kf.get_last_traded_dates()["last_traded_date"], kf.interval_1minute)
+            if intraday_ind
+            else (dt.datetime.now().date() - dt.timedelta(days=days), kf.interval_day)
+        )
         ####### Logging input params ######
 
         logging.debug(pformat(ticker))
@@ -753,190 +787,293 @@ class Get_Strangle_Prices(APIView):
             logging.debug(pformat("Printing single dict:"))
             logging.debug(pformat(single_dict))
 
-
             strangle_list = kf.master_instruments_df[
-                            (kf.master_instruments_df['name'] == ticker)
-                            & (((kf.master_instruments_df['strike'] == single_dict['CE'])
-                            & (kf.master_instruments_df['instrument_type'] =='CE')) 
-                            | ((kf.master_instruments_df['strike'] == single_dict['PE'])
-                            & (kf.master_instruments_df['instrument_type'] =='PE')))
-                            & (kf.master_instruments_df['expiry'] == expiry_date)
-                            ]['tradingsymbol'].to_list()
-
+                (kf.master_instruments_df["name"] == ticker)
+                & (
+                    (
+                        (kf.master_instruments_df["strike"] == single_dict["CE"])
+                        & (kf.master_instruments_df["instrument_type"] == "CE")
+                    )
+                    | (
+                        (kf.master_instruments_df["strike"] == single_dict["PE"])
+                        & (kf.master_instruments_df["instrument_type"] == "PE")
+                    )
+                )
+                & (kf.master_instruments_df["expiry"] == expiry_date)
+            ]["tradingsymbol"].to_list()
 
             logging.debug(pformat("Strangle list obtained:"))
             logging.debug(pformat(strangle_list))
 
             strangle_prices_df = pd.DataFrame()
             for strangle_instrument in strangle_list:
-                price_df = kf.get_price_history(ticker=strangle_instrument,
-                                                start_date=start_date,
-                                                end_date=dt.datetime.now().date(),
-                                                interval=interval)
+                price_df = kf.get_price_history(
+                    ticker=strangle_instrument,
+                    start_date=start_date,
+                    end_date=dt.datetime.now().date(),
+                    interval=interval,
+                )
 
                 logging.debug(pformat(price_df))
-                price_df[strangle_instrument] = price_df['close']
-                price_df.drop(columns=['open','low','high','close', 'volume'], inplace=True)
+                price_df[strangle_instrument] = price_df["close"]
+                price_df.drop(
+                    columns=["open", "low", "high", "close", "volume"], inplace=True
+                )
                 logging.debug(pformat(price_df))
 
-
-                # Copy price_df  if strangle_prices_df is empty else 
+                # Copy price_df  if strangle_prices_df is empty else
                 #  append/concat price_df into strangle_prices_df
-                strangle_prices_df = price_df.copy() if strangle_prices_df.empty else \
-                                    pd.concat([price_df, strangle_prices_df], axis=1, join='inner')
+                strangle_prices_df = (
+                    price_df.copy()
+                    if strangle_prices_df.empty
+                    else pd.concat([price_df, strangle_prices_df], axis=1, join="inner")
+                )
 
                 logging.debug(pformat(strangle_prices_df))
 
-
             # eg: column header label would be "pair1" for CE -> 16750.0 and PE -> 12200.0
-            strangle_prices_df[f"{single_dict['label']}"] = strangle_prices_df.sum(axis=1)
-            final_strangle_df = strangle_prices_df.copy() if final_strangle_df.empty else \
-                                    pd.concat([final_strangle_df, strangle_prices_df], axis=1, join='inner')
-            final_strangle_df = final_strangle_df.apply(lambda x:round(x,2),axis=1)
-            
+            strangle_prices_df[f"{single_dict['label']}"] = strangle_prices_df.sum(
+                axis=1
+            )
+            final_strangle_df = (
+                strangle_prices_df.copy()
+                if final_strangle_df.empty
+                else pd.concat(
+                    [final_strangle_df, strangle_prices_df], axis=1, join="inner"
+                )
+            )
+            final_strangle_df = final_strangle_df.apply(lambda x: round(x, 2), axis=1)
 
             logging.debug(pformat(final_strangle_df))
 
-        base_ticker = "NIFTY 50" if ticker.upper() == "NIFTY" else \
-                        "NIFTY BANK" if ticker.upper() == "BANKNIFTY" else \
-                        ticker.upper() 
+        base_ticker = (
+            "NIFTY 50"
+            if ticker.upper() == "NIFTY"
+            else "NIFTY BANK"
+            if ticker.upper() == "BANKNIFTY"
+            else ticker.upper()
+        )
 
-        ticker_df = kf.get_price_history(ticker=base_ticker,
-                                        start_date=start_date,
-                                        end_date=dt.datetime.now().date(),
-                                        interval=interval)
+        ticker_df = kf.get_price_history(
+            ticker=base_ticker,
+            start_date=start_date,
+            end_date=dt.datetime.now().date(),
+            interval=interval,
+        )
 
         logging.debug(pformat(ticker_df))
 
         if not ticker_df.empty:
-            ticker_df.drop(columns=['open', 'high', 'low', 'volume'], inplace=True)
-            ticker_df.rename(columns={'close': ticker}, inplace=True)
+            ticker_df.drop(columns=["open", "high", "low", "volume"], inplace=True)
+            ticker_df.rename(columns={"close": ticker}, inplace=True)
         else:
-            logging.debug(pformat('Data for Base ticker is not fetched...'))
+            logging.debug(pformat("Data for Base ticker is not fetched..."))
 
-        final_strangle_df = pd.concat([final_strangle_df, ticker_df], axis=1, join='inner')
+        final_strangle_df = pd.concat(
+            [final_strangle_df, ticker_df], axis=1, join="inner"
+        )
         logging.debug(pformat(final_strangle_df))
 
-        final_strangle_df.index = final_strangle_df.index.strftime("%H:%M") if intraday_ind \
-                                    else final_strangle_df.index.strftime("%b-%d")
+        final_strangle_df.index = (
+            final_strangle_df.index.strftime("%H:%M")
+            if intraday_ind
+            else final_strangle_df.index.strftime("%b-%d")
+        )
 
         logging.debug(pformat(final_strangle_df))
-           
 
         ####################### chartjs ########################
-        NewChart = strangle_linegraph(label_ticker=ticker,scale_label_str="Strangle Prices")()
+        NewChart = strangle_linegraph(
+            label_ticker=ticker, scale_label_str="Strangle Prices"
+        )()
         NewChart.labels.xaxis_labels = final_strangle_df.index.to_list()
         NewChart.data.linedata.data = final_strangle_df[ticker].to_list()
         ChartJSON_json = json.loads(NewChart.get())
         logging.debug(pformat(ChartJSON_json))
 
         color_count = len(strangle_strike_list)
-        for ind,single_dict in enumerate(strangle_strike_list):
+        for ind, single_dict in enumerate(strangle_strike_list):
             ###Adding New Line
-            newline = strangle_newline(data=final_strangle_df[f"{single_dict['label']}"].to_list(), 
-                                    fill=False, 
-                                    label=f"{single_dict['label']}", 
-                                    yAxisID="y2",
-                                    borderColor = ind % color_count)()
+            newline = strangle_newline(
+                data=final_strangle_df[f"{single_dict['label']}"].to_list(),
+                fill=False,
+                label=f"{single_dict['label']}",
+                yAxisID="y2",
+                borderColor=ind % color_count,
+            )()
             newline_json = json.loads(json.dumps(newline.__dict__))
             logging.debug(pformat(newline_json))
-            ChartJSON_json['data']['datasets'].append(newline_json)
+            ChartJSON_json["data"]["datasets"].append(newline_json)
 
         logging.debug(pformat(datetime.now() - sc_start_time))
         logging.debug(pformat("Rendering chartjson string..."))
-       
 
         ####################### chartjs ########################
 
         return Response(ChartJSON_json)
 
 class Gainers_Losers(APIView):
-    def post(self , request):
-        #********************************* INPUT PARAMS *******************************************
+    def post(self, request):
+        # ********************************* INPUT PARAMS *******************************************
         try:
-            number = request.data.get('number',None)
-            gainers_or_losers = request.data.get('gainers_or_losers',None).upper()
-            gnlr_type = request.data.get('type',None).upper()
-            ret_df = request.data.get('ret_df',False)
+            number = request.data.get("number", None)
+            gainers_or_losers = request.data.get("gainers_or_losers", None).upper()
+            gnlr_type = request.data.get("type", None).upper()
+            ret_df = request.data.get("ret_df", False)
+            expiry_date = None
+            if gnlr_type in ["FUTURES", "FUT"]:
+                expiry_date = datetime.strptime(
+                    request.data.get("expiry_date", None), "%Y-%m-%d"
+                ).date()
         except Exception as e:
             return "Error encountered while reading input request:\n" + str(e)
 
-        #********************************** INPUT PARAMS ******************************************
+        # ********************************** INPUT PARAMS ******************************************
         # start_time = datetime.now()
+        # breakpoint()
+
         kf = KiteFunctions()
         stock_df = None
-        if gnlr_type in ["STOCK","STOCKS"]:
+        if gnlr_type in ["STOCK", "STOCKS"]:
             gnlr_type = "STOCKS"
-            stock_df = kf.master_instruments_df[
-            kf.master_instruments_df["segment"]=="NFO-FUT"].groupby("name").first().reset_index()
+            stock_df = (
+                kf.master_instruments_df[
+                    kf.master_instruments_df["segment"] == "NFO-FUT"
+                ]
+                .groupby("name")
+                .first()
+                .reset_index()
+            )
+
+            stock_df["exchange_tradingsymbol"] = stock_df.apply(
+                lambda x: "NSE:" + x["name"], axis=1
+            )
+
+        elif gnlr_type == "INDICES":
+            stock_df = (
+                kf.master_instruments_df[
+                    (kf.master_instruments_df["segment"] == "INDICES")
+                    & (kf.master_instruments_df["exchange"] == "NSE")
+                    & ~(kf.master_instruments_df["name"] == "NIFTY50 DIV POINT")
+                ]
+                .groupby("name")
+                .first()
+                .reset_index()
+            )
+
+            stock_df["exchange_tradingsymbol"] = stock_df.apply(
+                lambda x: "NSE:" + x["name"], axis=1
+            )
+
         else:
             stock_df = kf.master_instruments_df[
-            (kf.master_instruments_df["segment"]=="INDICES") & 
-            (kf.master_instruments_df["exchange"]=="NSE") &
-            ~(kf.master_instruments_df["name"]=="NIFTY50 DIV POINT")].groupby("name").first().reset_index()
+                (kf.master_instruments_df["segment"] == "NFO-FUT")
+                & (kf.master_instruments_df["expiry"] == expiry_date)
+            ]
+            # breakpoint()
+            stock_df = pd.concat(
+                [
+                    stock_df,
+                    stock_df.loc[:, "tradingsymbol"].apply(lambda x: "NFO:" + x),
+                ],
+                axis=1,
+            )
+            stock_df.columns.values[-1] = "exchange_tradingsymbol"
 
-        stock_df["exchange_tradingsymbol"] = stock_df.apply(lambda x:"NSE:"+x["name"],axis=1)
         # breakpoint()
-        res_df = pd.DataFrame(kf.kite.quote(stock_df[
-        "exchange_tradingsymbol"].tolist())).transpose()[[
-        'last_price','ohlc']].apply(lambda x:((
-        x['last_price']-x['ohlc']['close'])/x['ohlc']['close'])*100 
-        if x['ohlc']['close'] !=0 else None,axis=1)
+        res_df = (
+            pd.DataFrame(kf.kite.quote(stock_df["exchange_tradingsymbol"].tolist()))
+            .transpose()[["last_price", "ohlc"]]
+            .apply(
+                lambda x: ((x["last_price"] - x["ohlc"]["close"]) / x["ohlc"]["close"])
+                * 100
+                if x["ohlc"]["close"] != 0
+                else None,
+                axis=1,
+            )
+        )
 
         res_df.dropna(inplace=True)
-        res_df.sort_values(ascending=False,inplace=True)
+        res_df.sort_values(ascending=False, inplace=True)
         # breakpoint()
-        res_df.index = res_df.index.to_series().apply(lambda x:x.split(":")[1]).tolist()
+        res_df.index = (
+            res_df.index.to_series().apply(lambda x: x.split(":")[1]).tolist()
+        )
         res_df = res_df.round(2)
 
         if ret_df:
             if gainers_or_losers == "GAINERS":
-                return json.dumps(dict(gainers=res_df[:number].to_dict() 
-                    if number !=0 else res_df[res_df>0].to_dict()))
+                return json.dumps(
+                    dict(
+                        gainers=res_df[:number].to_dict()
+                        if number != 0
+                        else res_df[res_df > 0].to_dict()
+                    )
+                )
 
-            elif  gainers_or_losers == "LOSERS":
-                return json.dumps(dict(losers=res_df[-number:].to_dict() 
-                    if number !=0 else res_df[res_df<0].to_dict()))
+            elif gainers_or_losers == "LOSERS":
+                return json.dumps(
+                    dict(
+                        losers=res_df[-number:].to_dict()
+                        if number != 0
+                        else res_df[res_df < 0].to_dict()
+                    )
+                )
 
-            return json.dumps(dict(gainers=res_df[:number].to_dict() 
-                    if number !=0 else res_df[res_df>0].to_dict(),
-                    losers=res_df[-number:].to_dict() 
-                    if number !=0 else res_df[res_df<0].to_dict()))
+            return json.dumps(
+                dict(
+                    gainers=res_df[:number].to_dict()
+                    if number != 0
+                    else res_df[res_df > 0].to_dict(),
+                    losers=res_df[-number:].to_dict()
+                    if number != 0
+                    else res_df[res_df < 0].to_dict(),
+                )
+            )
 
         ####################### chartjs ########################
 
         if gainers_or_losers == "GAINERS":
             NewChart = gl_bargraph(
                 data1=res_df[:number].tolist()
-                if number !=0 else res_df[res_df>0].tolist(),
+                if number != 0
+                else res_df[res_df > 0].tolist(),
                 yaxis_labels=res_df[:number].index.tolist()
-                if number !=0 else res_df[res_df>0].index.tolist(),
+                if number != 0
+                else res_df[res_df > 0].index.tolist(),
                 y_label=gnlr_type,
-                top_label=gainers_or_losers,)()
+                top_label=gainers_or_losers,
+            )()
 
         elif gainers_or_losers == "LOSERS":
             NewChart = gl_bargraph(
                 data1=res_df[-number:].tolist()
-                if number !=0 else res_df[res_df<0].tolist(),
+                if number != 0
+                else res_df[res_df < 0].tolist(),
                 yaxis_labels=res_df[-number:].index.tolist()
-                if number !=0 else res_df[res_df<0].index.tolist(),
+                if number != 0
+                else res_df[res_df < 0].index.tolist(),
                 y_label=gnlr_type,
                 top_label=gainers_or_losers,
                 barcolor="RED",
-                position='right')()
+                position="right",
+            )()
         else:
             NewChart = gl_bargraph(
-                data1=res_df[:number].tolist() +res_df[-number:].tolist()
-                if number !=0 else res_df[res_df!=0].tolist(),
-                yaxis_labels=res_df[:number].index.tolist()+
-                res_df[-number:].index.tolist()
-                if number !=0 else res_df[~(res_df==0)].index.tolist(),
+                data1=res_df[:number].tolist() + res_df[-number:].tolist()
+                if number != 0
+                else res_df[res_df != 0].tolist(),
+                yaxis_labels=res_df[:number].index.tolist()
+                + res_df[-number:].index.tolist()
+                if number != 0
+                else res_df[~(res_df == 0)].index.tolist(),
                 y_label=gnlr_type,
                 top_label="GAINERS & LOSERS",
                 barcolor="BOTH",
-                position='left',
-                len1=number if number !=0 else len(res_df[res_df>0].index),
-                len2=number if number !=0 else len(res_df[res_df>0].index))()
+                position="left",
+                len1=number if number != 0 else len(res_df[res_df > 0].index),
+                len2=number if number != 0 else len(res_df[res_df > 0].index),
+            )()
 
         ####################### chartjs ########################
         return Response(json.loads(NewChart.get()))     
