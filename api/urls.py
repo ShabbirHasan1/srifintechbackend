@@ -15,5 +15,6 @@ urlpatterns = [
    url( r'^ltp/?$', views.Get_ltp_ticker.as_view(),name ='ltp') ,
    url( r'^straddleprices/?$', views.Get_Straddle_Prices.as_view(),name ='straddle') ,
    url( r'^strangleprices/?$', views.Get_Strangle_Prices.as_view(),name ='strangle') ,
+   url( r'^gainerslosers/?$', views.Gainers_Losers.as_view(),name ='gainerslosers') ,
    url( r'$', views.Home, name ='home'),
 ]

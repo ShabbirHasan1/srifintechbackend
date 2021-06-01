@@ -703,7 +703,6 @@ class Get_Straddle_Prices(APIView):
 
         return Response(ChartJSON_json)
 
-
 class Get_Strangle_Prices(APIView):
     def post(self, request):
         logging.debug(pformat('Beginning of strangle api...'))
@@ -851,4 +850,94 @@ class Get_Strangle_Prices(APIView):
 
         return Response(ChartJSON_json)
 
+class Gainers_Losers(APIView):
+    def post(self , request):
+        #********************************* INPUT PARAMS *******************************************
+        try:
+            number = request.data.get('number',None)
+            gainers_or_losers = request.data.get('gainers_or_losers',None).upper()
+            gnlr_type = request.data.get('type',None).upper()
+            ret_df = request.data.get('ret_df',False)
+        except Exception as e:
+            return "Error encountered while reading input request:\n" + str(e)
+
+        #********************************** INPUT PARAMS ******************************************
+        # start_time = datetime.now()
+        kf = KiteFunctions()
+        stock_df = None
+        if gnlr_type in ["STOCK","STOCKS"]:
+            gnlr_type = "STOCKS"
+            stock_df = kf.master_instruments_df[
+            kf.master_instruments_df["segment"]=="NFO-FUT"].groupby("name").first().reset_index()
+        else:
+            stock_df = kf.master_instruments_df[
+            (kf.master_instruments_df["segment"]=="INDICES") & 
+            (kf.master_instruments_df["exchange"]=="NSE") &
+            ~(kf.master_instruments_df["name"]=="NIFTY50 DIV POINT")].groupby("name").first().reset_index()
+
+        stock_df["exchange_tradingsymbol"] = stock_df.apply(lambda x:"NSE:"+x["name"],axis=1)
+        # breakpoint()
+        res_df = pd.DataFrame(kf.kite.quote(stock_df[
+        "exchange_tradingsymbol"].tolist())).transpose()[[
+        'last_price','ohlc']].apply(lambda x:((
+        x['last_price']-x['ohlc']['close'])/x['ohlc']['close'])*100 
+        if x['ohlc']['close'] !=0 else None,axis=1)
+
+        res_df.dropna(inplace=True)
+        res_df.sort_values(ascending=False,inplace=True)
+        # breakpoint()
+        res_df.index = res_df.index.to_series().apply(lambda x:x.split(":")[1]).tolist()
+        res_df = res_df.round(2)
+
+        if ret_df:
+            if gainers_or_losers == "GAINERS":
+                return json.dumps(dict(gainers=res_df[:number].to_dict() 
+                    if number !=0 else res_df[res_df>0].to_dict()))
+
+            elif  gainers_or_losers == "LOSERS":
+                return json.dumps(dict(losers=res_df[-number:].to_dict() 
+                    if number !=0 else res_df[res_df<0].to_dict()))
+
+            return json.dumps(dict(gainers=res_df[:number].to_dict() 
+                    if number !=0 else res_df[res_df>0].to_dict(),
+                    losers=res_df[-number:].to_dict() 
+                    if number !=0 else res_df[res_df<0].to_dict()))
+
+        ####################### chartjs ########################
+
+        if gainers_or_losers == "GAINERS":
+            NewChart = gl_bargraph(
+                data1=res_df[:number].tolist()
+                if number !=0 else res_df[res_df>0].tolist(),
+                yaxis_labels=res_df[:number].index.tolist()
+                if number !=0 else res_df[res_df>0].index.tolist(),
+                y_label=gnlr_type,
+                top_label=gainers_or_losers,)()
+
+        elif gainers_or_losers == "LOSERS":
+            NewChart = gl_bargraph(
+                data1=res_df[-number:].tolist()
+                if number !=0 else res_df[res_df<0].tolist(),
+                yaxis_labels=res_df[-number:].index.tolist()
+                if number !=0 else res_df[res_df<0].index.tolist(),
+                y_label=gnlr_type,
+                top_label=gainers_or_losers,
+                barcolor="RED",
+                position='right')()
+        else:
+            NewChart = gl_bargraph(
+                data1=res_df[:number].tolist() +res_df[-number:].tolist()
+                if number !=0 else res_df[res_df!=0].tolist(),
+                yaxis_labels=res_df[:number].index.tolist()+
+                res_df[-number:].index.tolist()
+                if number !=0 else res_df[~(res_df==0)].index.tolist(),
+                y_label=gnlr_type,
+                top_label="GAINERS & LOSERS",
+                barcolor="BOTH",
+                position='left',
+                len1=number if number !=0 else len(res_df[res_df>0].index),
+                len2=number if number !=0 else len(res_df[res_df>0].index))()
+
+        ####################### chartjs ########################
+        return Response(json.loads(NewChart.get()))     
 
