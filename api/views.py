@@ -730,7 +730,6 @@ class Get_Straddle_Prices(APIView):
 
         return Response(ChartJSON_json)
 
-
 class Get_Strangle_Prices(APIView):
     def post(self, request):
         logging.debug(pformat("Beginning of strangle api..."))
@@ -915,12 +914,14 @@ class Get_Strangle_Prices(APIView):
 class Gainers_Losers(APIView):
     def post(self, request):
         # ********************************* INPUT PARAMS *******************************************
+        # Number : 5 Type : Losers
+        # Futures : 3.22 sec.  Stocks : 3.10 sec. Indices : 3.10 sec.
         try:
             number = request.data.get("number", None)
             gainers_or_losers = request.data.get("gainers_or_losers", None).upper()
             gnlr_type = request.data.get("type", None).upper()
             ret_df = request.data.get("ret_df", False)
-            ret_oi = request.data.get("ret_oi", False)
+            
             expiry_date = None
             if gnlr_type in ["FUTURES", "FUT"]:
                 expiry_date = datetime.strptime(
@@ -986,54 +987,22 @@ class Gainers_Losers(APIView):
         # breakpoint()
         res_df = None
 
-        if ret_oi and  gnlr_type in ["FUTURES", "FUT"]:
-            ltd = kf.kite.quote(["NSE:NIFTY 50"])['NSE:NIFTY 50']['timestamp'].date()
-            if date.today() == ltd:
-            # if False:
-                res_df = kf.ka.pg.get_postgres_data_df_with_condition(table_name="stock_futures_history_day",
-                    where_condition="where CAST(last_update AS DATE) = '{}' and CAST(expiry_date as DATE) = '{}'".format(
-                        (date.today() -timedelta(days=1)).strftime("%Y-%m-%d"),expiry_date.strftime("%Y-%m-%d")))
-                res_df.index = res_df.apply(lambda x: "NFO:"+x['ticker'],axis=1)
-                res_df.columns.values[-3] = "past_oi"
-                res_df = pd.concat([res_df,pd.DataFrame(kf.kite.quote(stock_df["exchange_tradingsymbol"].tolist()))
-                    .transpose()],axis=1).apply(lambda x:((
-                        x['oi']-x['past_oi'])/x['past_oi'])*100 if x['past_oi'] != 0 else None,axis=1)
-                res_df.index = (
-                    res_df.index.to_series().apply(lambda x: x.split(":")[1]).tolist()
+            
+        res_df = (
+            pd.DataFrame(kf.kite.quote(stock_df["exchange_tradingsymbol"].tolist()))
+            .transpose()[["last_price", "ohlc"]]
+            .apply(
+                lambda x: ((x["last_price"] - x["ohlc"]["close"]) / x["ohlc"]["close"])
+                * 100
+                if x["ohlc"]["close"] != 0
+                else None,
+                axis=1,
             )
-            else:
-
-                res_df = kf.ka.pg.get_postgres_data_df_with_condition(table_name="stock_futures_history_day",
-                    where_condition="where CAST(last_update AS DATE) "+\
-                    "= (SELECT CAST (max(last_update) AS DATE) from public.stock_futures_history_day"+\
-                    " WHERE CAST(last_update AS DATE) < '{}') and CAST(expiry_date as DATE) = '{}'".format(
-                        ltd.strftime("%Y-%m-%d"),expiry_date.strftime("%Y-%m-%d")))
-                res_df.columns.values[-3] = "past_oi"
-                res_indx = res_df['ticker']
-                res_df = pd.concat([res_df,kf.ka.pg.get_postgres_data_df_with_condition(
-                    table_name="stock_futures_history_day",
-                    where_condition="where CAST(date AS DATE) < '{}' and CAST(expiry_date as DATE) = '{}'".format(
-                        ltd.strftime("%Y-%m-%d"),expiry_date.strftime("%Y-%m-%d")))],axis=1).apply(lambda x:((
-                        x['oi']-x['past_oi'])/x['past_oi'])*100 if x['past_oi'] != 0 else None,axis=1)
-                res_df.index = res_indx
-                
-            gainers_or_losers += " OI"
-        else:
-            res_df = (
-                pd.DataFrame(kf.kite.quote(stock_df["exchange_tradingsymbol"].tolist()))
-                .transpose()[["last_price", "ohlc"]]
-                .apply(
-                    lambda x: ((x["last_price"] - x["ohlc"]["close"]) / x["ohlc"]["close"])
-                    * 100
-                    if x["ohlc"]["close"] != 0
-                    else None,
-                    axis=1,
-                )
-            )
+        )
         
-            res_df.index = (
-                res_df.index.to_series().apply(lambda x: x.split(":")[1]).tolist()
-            )
+        res_df.index = (
+            res_df.index.to_series().apply(lambda x: x.split(":")[1]).tolist()
+        )
 
         # breakpoint()
         res_df.dropna(inplace=True)
@@ -1109,7 +1078,7 @@ class Gainers_Losers(APIView):
                 if number != 0
                 else res_df[~(res_df == 0)].index.tolist(),
                 y_label=gnlr_type,
-                top_label="GAINERS OI & LOSERS OI" if ret_oi else "GAINERS & LOSERS",
+                top_label="GAINERS & LOSERS",
                 barcolor="BOTH",
                 position="left",
                 len1=number if number != 0 else len(res_df[res_df > 0].index),
@@ -1119,3 +1088,148 @@ class Gainers_Losers(APIView):
         ####################### chartjs ########################
         return Response(json.loads(NewChart.get()))     
 
+class Gainers_Losers_OI(APIView):
+    def post(self, request):
+        # ********************************* INPUT PARAMS *******************************************
+        try:
+            number = request.data.get("number", None)
+            gainers_or_losers = request.data.get("gainers_or_losers", None).upper()
+            ret_df = request.data.get("ret_df", False)
+            expiry_date = datetime.strptime(
+                request.data.get("expiry_date", None), "%Y-%m-%d"
+            ).date()
+        except Exception as e:
+            return "Error encountered while reading input request:\n" + str(e)
+
+        # ********************************** INPUT PARAMS ******************************************
+
+        kf = KiteFunctions()
+        stock_df = kf.master_instruments_df[
+                (kf.master_instruments_df["segment"] == "NFO-FUT")
+                & (kf.master_instruments_df["expiry"] == expiry_date)
+                & ~(kf.master_instruments_df["name"].isin(["NIFTY", "BANKNIFTY", "FINNIFTY"]))
+            ]
+        # breakpoint()
+        stock_df = pd.concat(
+            [
+                stock_df,
+                stock_df.loc[:, "tradingsymbol"].apply(lambda x: "NFO:" + x),
+            ],
+            axis=1,
+        )
+        stock_df.columns.values[-1] = "exchange_tradingsymbol"
+
+        ltd = kf.kite.quote(["NSE:NIFTY 50"])['NSE:NIFTY 50']['timestamp'].date()
+        res_df = None
+        if date.today() == ltd:
+            res_df = kf.ka.pg.get_postgres_data_df_with_condition(table_name="stock_futures_history_day",
+                where_condition="where CAST(last_update AS DATE) = '{}' and CAST(expiry_date as DATE) = '{}'".format(
+                    (date.today() -timedelta(days=1)).strftime("%Y-%m-%d"),expiry_date.strftime("%Y-%m-%d")))
+            res_df.index = res_df.apply(lambda x: "NFO:"+x['ticker'],axis=1)
+            res_df.columns.values[-3] = "past_oi"
+            res_df = pd.concat([res_df,pd.DataFrame(kf.kite.quote(stock_df["exchange_tradingsymbol"].tolist()))
+                .transpose()],axis=1).apply(lambda x:((
+                    x['oi']-x['past_oi'])/x['past_oi'])*100 if x['past_oi'] != 0 else None,axis=1)
+            res_df.index = (
+                res_df.index.to_series().apply(lambda x: x.split(":")[1]).tolist()
+           )
+        else:
+
+            res_df = kf.ka.pg.get_postgres_data_df_with_condition(table_name="stock_futures_history_day",
+                where_condition="where CAST(last_update AS DATE) "+\
+                "= (SELECT CAST (max(last_update) AS DATE) from public.stock_futures_history_day"+\
+                " WHERE CAST(last_update AS DATE) < '{}') and CAST(expiry_date as DATE) = '{}'".format(
+                    ltd.strftime("%Y-%m-%d"),expiry_date.strftime("%Y-%m-%d")))
+            res_df.columns.values[-3] = "past_oi"
+            res_indx = res_df['ticker']
+            
+            res_df = pd.concat([res_df,kf.ka.pg.get_postgres_data_df_with_condition(
+                table_name="stock_futures_history_day",
+                where_condition="where CAST(date AS DATE) = '{}' and CAST(expiry_date as DATE) = '{}'".format(
+                    ltd.strftime("%Y-%m-%d"),expiry_date.strftime("%Y-%m-%d")))],axis=1).apply(lambda x:((
+                    x['oi']-x['past_oi'])/x['past_oi'])*100 if x['past_oi'] != 0 else None,axis=1)
+            res_df.index = res_indx
+
+        res_df.dropna(inplace=True)
+        res_df.sort_values(ascending=False, inplace=True)
+        
+        res_df = res_df.round(2)
+
+        if ret_df:
+            if gainers_or_losers == "GAINERS":
+                return json.dumps(
+                    dict(
+                        gainers=res_df[:number].to_dict()
+                        if number != 0
+                        else res_df[res_df > 0].to_dict()
+                    )
+                )
+
+            elif gainers_or_losers == "LOSERS":
+                return json.dumps(
+                    dict(
+                        losers=res_df[-number:].to_dict()
+                        if number != 0
+                        else res_df[res_df < 0].to_dict()
+                    )
+                )
+
+            return json.dumps(
+                dict(
+                    gainers=res_df[:number].to_dict()
+                    if number != 0
+                    else res_df[res_df > 0].to_dict(),
+                    losers=res_df[-number:].to_dict()
+                    if number != 0
+                    else res_df[res_df < 0].to_dict(),
+                )
+            )
+
+        ####################### chartjs ########################
+
+        if gainers_or_losers == "GAINERS":
+            NewChart = gl_bargraph(
+                data1=res_df[:number].tolist()
+                if number != 0
+                else res_df[res_df > 0].tolist(),
+                yaxis_labels=res_df[:number].index.tolist()
+                if number != 0
+                else res_df[res_df > 0].index.tolist(),
+                y_label="FUTURES",
+                top_label=gainers_or_losers + " OI",
+            )()
+
+        elif gainers_or_losers == "LOSERS":
+            NewChart = gl_bargraph(
+                data1=res_df[-number:].tolist()
+                if number != 0
+                else res_df[res_df < 0].tolist(),
+                yaxis_labels=res_df[-number:].index.tolist()
+                if number != 0
+                else res_df[res_df < 0].index.tolist(),
+                y_label="FUTURES",
+                top_label=gainers_or_losers + " OI",
+                barcolor="RED",
+                position="right",
+            )()
+        else:
+            NewChart = gl_bargraph(
+                data1=res_df[:number].tolist() + res_df[-number:].tolist()
+                if number != 0
+                else res_df[res_df != 0].tolist(),
+                yaxis_labels=res_df[:number].index.tolist()
+                + res_df[-number:].index.tolist()
+                if number != 0
+                else res_df[~(res_df == 0)].index.tolist(),
+                y_label="FUTURES",
+                top_label="GAINERS OI & LOSERS OI",
+                barcolor="BOTH",
+                position="left",
+                len1=number if number != 0 else len(res_df[res_df > 0].index),
+                len2=number if number != 0 else len(res_df[res_df > 0].index),
+            )()
+
+        ####################### chartjs ########################
+        return Response(json.loads(NewChart.get()))
+
+        # return Response({"statusCode":200})
