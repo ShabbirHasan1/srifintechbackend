@@ -467,6 +467,72 @@ class KiteFunctions(KiteAuthentication):
         last_traded_dates['last_traded_date-1'] = nifty_df.index[-2].to_pydatetime().date()
         
         return last_traded_dates
+
+    def get_gainers_losers_close_df(self,gnlr_type,expiry_date=None):
+        stock_df = None
+        if gnlr_type == "STOCKS":
+            stock_df = (
+                self.master_instruments_df[
+                    self.master_instruments_df["segment"] == "NFO-FUT"
+                ]
+                .groupby("name")
+                .first()
+                .reset_index()
+            )
+
+            stock_df["exchange_tradingsymbol"] = stock_df.apply(
+                lambda x: "NSE:" + x["name"], axis=1
+            )
+
+        elif gnlr_type == "INDICES":
+            stock_df = (
+                self.master_instruments_df[
+                    (self.master_instruments_df["segment"] == "INDICES")
+                    & (self.master_instruments_df["exchange"] == "NSE")
+                    & ~(self.master_instruments_df["name"] == "NIFTY50 DIV POINT")
+                ]
+                .groupby("name")
+                .first()
+                .reset_index()
+            )
+
+            stock_df["exchange_tradingsymbol"] = stock_df.apply(
+                lambda x: "NSE:" + x["name"], axis=1
+            )
+
+        else:
+            stock_df = self.master_instruments_df[
+                (self.master_instruments_df["segment"] == "NFO-FUT")
+                & (self.master_instruments_df["expiry"] == expiry_date)
+                & ~(self.master_instruments_df["name"].isin(["NIFTY", "BANKNIFTY", "FINNIFTY"]))
+            ]
+            # breakpoint()
+            stock_df = pd.concat(
+                [
+                    stock_df,
+                    stock_df.loc[:, "tradingsymbol"].apply(lambda x: "NFO:" + x),
+                ],
+                axis=1,
+            )
+            stock_df.columns.values[-1] = "exchange_tradingsymbol"
+        res_df = pd.DataFrame(self.kite.quote(
+            stock_df["exchange_tradingsymbol"].tolist())).transpose().apply(
+        lambda x:[
+        x['last_price'],x['ohlc']['close'],
+        x["last_price"] - x["ohlc"]["close"],
+        ((x["last_price"] - x["ohlc"]["close"]) / x["ohlc"]["close"])*100] 
+        if x['ohlc']['close'] != 0 else [x['last_price'],x['ohlc']['close'],None] , axis=1)
+
+        res_df = pd.DataFrame(res_df.to_list(),
+            index=res_df.index.to_series().apply(lambda x: x.split(":")[1]).tolist(),
+            columns=["prev_close","curr_close","diff","percent_diff"])
+
+        res_df.dropna(inplace=True)
+        res_df.sort_values(by="percent_diff",ascending=False, inplace=True)
+        res_df = res_df.round(2)
+        # breakpoint()
+        return res_df
+
         
 
 class Charting:
