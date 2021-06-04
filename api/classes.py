@@ -469,6 +469,7 @@ class KiteFunctions(KiteAuthentication):
         
         return last_traded_dates
 
+    # Should add last traded date comparision ...
     def get_gainers_losers_close_df(self, gnlr_type, expiry_date=None,from_date=None,to_date=None):
         #**********************************************************************************************************
         #**********************************************************************************************************
@@ -561,7 +562,45 @@ class KiteFunctions(KiteAuthentication):
             
             if to_date == date.today():
                 if gnlr_type == "STOCKS":
-                    pass
+                    res_df = self.ka.pg.get_postgres_data_df_with_condition(
+                                table_name="stock_ohlc",
+                                where_condition="where CAST(last_update AS DATE) = '{}' ".format(
+                                    from_date
+                                ),
+                            )
+                    # breakpoint()
+                    res_df.index = res_df.apply(lambda x: "NSE:" + x["ticker"], axis=1)
+                    # breakpoint()
+                    res_df = pd.concat(
+                        [
+                            res_df,
+                            pd.DataFrame(
+                                self.kite.quote(res_df.index.tolist())
+                            ).transpose(),
+                        ],
+                        axis=1,
+                    ).apply(
+                        lambda x: [
+                        x['close'],
+                        x['last_price'],
+                        x['close']-x['last_price'],
+                        (x["close"] - x["last_price"]) / x["close"] * 100]
+                        if x["close"] != 0
+                        else [x["close"], x["last_price"], None, None],
+                        axis=1,
+                    )
+                    # breakpoint()
+                    res_df = pd.DataFrame(
+                        res_df.to_list(),
+                        index=res_df.index.to_series().apply(lambda x: x.split(":")[1]).tolist(),
+                        columns=["prev_close", "curr_close", "diff", "percent_diff"],
+                    )
+                    # breakpoint()
+                    res_df.dropna(inplace=True)
+                    res_df.sort_values(by="percent_diff", ascending=False, inplace=True)
+                    res_df = res_df.round(2)
+                    # breakpoint()
+                    return res_df
 
                 elif gnlr_type == "INDICES":
                     pass
@@ -612,7 +651,49 @@ class KiteFunctions(KiteAuthentication):
             else:
 
                 if gnlr_type == "STOCKS":
-                    pass
+                    res_df = self.ka.pg.get_postgres_data_df_with_condition(
+                                table_name="stock_ohlc",
+                                where_condition="where CAST(last_update AS DATE) = '{}' ".format(
+                                    from_date
+                                ),
+                            )
+                    # breakpoint()
+                    res_df.columns.values[6] = "prev_close"
+                    res_indx = res_df['ticker']
+                    # breakpoint()
+                    res_df = pd.concat(
+                    [
+                        res_df,
+                        self.ka.pg.get_postgres_data_df_with_condition(
+                            table_name="stock_ohlc",
+                            where_condition="where CAST(last_update AS DATE) = '{}' ".format(
+                                to_date
+                            ),
+                        ),
+                    ],
+                    axis=1,
+                    ).apply(
+                        lambda x: [
+                        x['prev_close'],
+                        x['close'],
+                        x['prev_close']-x['close'],
+                        (x["close"] - x["prev_close"]) / x["prev_close"] * 100]
+                        if x["prev_close"] != 0
+                        else [x["prev_close"], x["close"], None, None],
+                        axis=1,
+                    )
+                    # breakpoint()
+                    res_df = pd.DataFrame(
+                        res_df.to_list(),
+                        index=res_indx,
+                        columns=["prev_close", "curr_close", "diff", "percent_diff"],
+                    )
+                    # breakpoint()
+                    res_df.dropna(inplace=True)
+                    res_df.sort_values(by="percent_diff", ascending=False, inplace=True)
+                    res_df = res_df.round(2)
+                    # breakpoint()
+                    return res_df
 
                 elif gnlr_type == "INDICES":
                     pass
@@ -671,7 +752,45 @@ class KiteFunctions(KiteAuthentication):
 
         elif from_date is not None:
             if gnlr_type == "STOCKS":
-                pass
+                res_df = self.ka.pg.get_postgres_data_df_with_condition(
+                            table_name="stock_ohlc",
+                            where_condition="where CAST(last_update AS DATE) = '{}' ".format(
+                                from_date
+                            ),
+                        )
+                # breakpoint()
+                res_df.index = res_df.apply(lambda x: "NSE:" + x["ticker"], axis=1)
+                # breakpoint()
+                res_df = pd.concat(
+                    [
+                        res_df,
+                        pd.DataFrame(
+                            self.kite.quote(res_df.index.tolist())
+                        ).transpose(),
+                    ],
+                    axis=1,
+                ).apply(
+                    lambda x: [
+                   x['close'],
+                    x['last_price'],
+                    x['close']-x['last_price'],
+                    (x["close"] - x["last_price"]) / x["close"] * 100]
+                    if x["close"] != 0
+                    else [x["close"], x["last_price"], None, None],
+                    axis=1,
+                )
+                # breakpoint()
+                res_df = pd.DataFrame(
+                    res_df.to_list(),
+                    index=res_df.index.to_series().apply(lambda x: x.split(":")[1]).tolist(),
+                    columns=["prev_close", "curr_close", "diff", "percent_diff"],
+                )
+                # breakpoint()
+                res_df.dropna(inplace=True)
+                res_df.sort_values(by="percent_diff", ascending=False, inplace=True)
+                res_df = res_df.round(2)
+                # breakpoint()
+                return res_df
 
             elif gnlr_type == "INDICES":
                 pass
