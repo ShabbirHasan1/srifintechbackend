@@ -928,6 +928,9 @@ class Gainers_Losers(APIView):
                 expiry_date = datetime.strptime(
                     request.data.get("expiry_date", None), "%Y-%m-%d"
                 ).date()
+
+            from_date = request.data.get("from_date", None)
+            to_date = request.data.get("to_date", None)
         except Exception as e:
             return "Error encountered while reading input request:\n" + str(e)
 
@@ -939,7 +942,17 @@ class Gainers_Losers(APIView):
         stock_df = None
         if gnlr_type in ["STOCK", "STOCKS"]:
             gnlr_type = "STOCKS"
-        res_df = kf.get_gainers_losers_close_df(gnlr_type, expiry_date)
+
+        if from_date is not None:
+            from_date = datetime.strptime(
+                    from_date, "%Y-%m-%d"
+                ).date()
+        if to_date is not None:
+            to_date = datetime.strptime(
+                    to_date, "%Y-%m-%d"
+                ).date()
+
+        res_df = kf.get_gainers_losers_close_df(gnlr_type, expiry_date,from_date,to_date)
 
         if ret_df:
             if gainers_or_losers == "GAINERS":
@@ -1039,7 +1052,6 @@ class Gainers_Losers(APIView):
         ####################### chartjs ########################
         return Response(json.loads(NewChart.get()))
 
-
 class Gainers_Losers_OI(APIView):
     def post(self, request):
         # ********************************* INPUT PARAMS *******************************************
@@ -1122,7 +1134,7 @@ class Gainers_Losers_OI(APIView):
                     res_df,
                     kf.ka.pg.get_postgres_data_df_with_condition(
                         table_name="stock_futures_history_day",
-                        where_condition="where CAST(date AS DATE) = '{}' and CAST(expiry_date as DATE) = '{}'".format(
+                        where_condition="where CAST(last_update AS DATE) = '{}' and CAST(expiry_date as DATE) = '{}'".format(
                             ltd.strftime("%Y-%m-%d"), expiry_date.strftime("%Y-%m-%d")
                         ),
                     ),
