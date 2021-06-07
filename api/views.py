@@ -914,9 +914,7 @@ class Get_Strangle_Prices(APIView):
 class Gainers_Losers(APIView):
     def post(self, request):
         # ********************************* INPUT PARAMS *******************************************
-        # Number : 5 Type : Losers
-        # Before == Futures : 3.22 sec.  Stocks : 3.10 sec. Indices : 3.10 sec.
-        # After == Futures : 3.75 sec.  Stocks : 3.52 sec. Indices : 3.35 sec.
+        
         try:
             number = request.data.get("number", None)
             gainers_or_losers = request.data.get("gainers_or_losers", None).upper()
@@ -935,14 +933,15 @@ class Gainers_Losers(APIView):
             return "Error encountered while reading input request:\n" + str(e)
 
         # ********************************** INPUT PARAMS ******************************************
-        # start_time = datetime.now()
-        # breakpoint()
 
+
+        # Initialising KiteFuntions object
         kf = KiteFunctions()
         stock_df = None
         if gnlr_type in ["STOCK", "STOCKS"]:
             gnlr_type = "STOCKS"
 
+        # Converting the date strings into date() object
         if from_date is not None:
             from_date = datetime.strptime(
                     from_date, "%Y-%m-%d"
@@ -952,8 +951,15 @@ class Gainers_Losers(APIView):
                     to_date, "%Y-%m-%d"
                 ).date()
 
+
+        # Retrieving the gainers losers dataframe.
+        # Dataframe returned would have the following columns:
+        # ["prev_close", "curr_close", "diff", "percent_diff"]
         res_df = kf.get_gainers_losers_close_df(gnlr_type, expiry_date,from_date,to_date)
 
+
+        # Check if "ret_df" parameter is True. If True simply return
+        # The dataframe in json format. If not return ChartJS response.
         if ret_df:
             if gainers_or_losers == "GAINERS":
                 return Response(
@@ -973,6 +979,7 @@ class Gainers_Losers(APIView):
                     )
                 )
 
+            # This block would be executed when gainers_or_losers == "BOTH" 
             return Response(
                 dict(
                     gainers=res_df.iloc[:number, -1].to_dict()
@@ -984,9 +991,35 @@ class Gainers_Losers(APIView):
                 )
             )
 
+
+
         ####################### chartjs ########################
 
-        if gainers_or_losers in ["GAINERS", "GAINERS OI"]:
+        '''
+
+        Gainers Losers ChartJS class is returned by gl_bargraph() function. 
+        This function takes the following parameters:
+
+        :param data1: list of bargraph data,
+        Here it would be the list of percentages of the top gainers/losers
+
+        :param yaxis_labels: List of labels for the corresponding bars.
+        :param y_label: String label for Y-axis.
+        :param top_label: String label for the top of the chart.
+        :param barcolor: String Color name for the color of bar. Default is "GREEN"
+        
+        :param position: String position for the bars alignment. 
+        Takes 'left' or 'right'. Default is 'left'. Works in opposing fashion 
+        for bars with negative values (Losers).
+
+        :param len1: Integer representing the length of 1st bardata. 
+        Required for the case of "BOTH", otherwise is optional.
+        :param len2: Integer representing the length of 1st bardata. 
+        Required for the case of "BOTH", otherwise is optional.
+
+        '''
+
+        if gainers_or_losers == "GAINERS":
             NewChart = gl_bargraph(
                 data1=res_df[res_df.iloc[:, -1] > 0].iloc[:number, -1].tolist()
                 if number != 0
@@ -1002,7 +1035,7 @@ class Gainers_Losers(APIView):
                 top_label=gainers_or_losers,
             )()
 
-        elif gainers_or_losers in ["LOSERS", "LOSERS OI"]:
+        elif gainers_or_losers == "LOSERS":
             NewChart = gl_bargraph(
                 data1=res_df[res_df.iloc[:, -1] < 0].iloc[-number:, -1].tolist()
                 if number != 0
@@ -1067,7 +1100,10 @@ class Gainers_Losers_OI(APIView):
 
         # ********************************** INPUT PARAMS ******************************************
 
+        # Initialising KiteFuntions object
         kf = KiteFunctions()
+
+        # Filtering the instruments df to get FUTURES instruments
         stock_df = kf.master_instruments_df[
             (kf.master_instruments_df["segment"] == "NFO-FUT")
             & (kf.master_instruments_df["expiry"] == expiry_date)
@@ -1077,7 +1113,10 @@ class Gainers_Losers_OI(APIView):
                 )
             )
         ]
-        # breakpoint()
+        
+
+        # Appending "NFO:" to the tradingsymbol in order to pass the instruments in quote().
+        # Example: "ACC21AUGFUT" -- > "NFO:ACC21AUGFUT"
         stock_df = pd.concat(
             [
                 stock_df,
@@ -1087,9 +1126,14 @@ class Gainers_Losers_OI(APIView):
         )
         stock_df.columns.values[-1] = "exchange_tradingsymbol"
 
+        # Fetching the last traded date from quote()
         ltd = kf.kite.quote(["NSE:NIFTY 50"])["NSE:NIFTY 50"]["timestamp"].date()
         res_df = None
+
+        # If today is also the last traded date i.e. markets are open
         if date.today() == ltd:
+
+            # Get previous days futures dataframe
             res_df = kf.ka.pg.get_postgres_data_df_with_condition(
                 table_name="stock_futures_history_day",
                 where_condition="where CAST(last_update AS DATE) = '{}' and CAST(expiry_date as DATE) = '{}'".format(
@@ -1097,8 +1141,17 @@ class Gainers_Losers_OI(APIView):
                     expiry_date.strftime("%Y-%m-%d"),
                 ),
             )
+
+            # Appending "NFO:" to the index in order to pass the instruments in quote().
+            # Example: "ACC21AUGFUT" -- > "NFO:ACC21AUGFUT"
             res_df.index = res_df.apply(lambda x: "NFO:" + x["ticker"], axis=1)
             res_df.columns.values[-3] = "past_oi"
+
+
+            # Get todays futures data from quote() in the form of dictionary,
+            # pass the dictionary in pd.DataFrame to convert it to a DataFrame,
+            # Combine previous days futures df with todays futures df using pd.concat(),
+            # apply the formula ( (current oi - prev oi) / prev oi ) * 100
             res_df = pd.concat(
                 [
                     res_df,
@@ -1113,11 +1166,16 @@ class Gainers_Losers_OI(APIView):
                 else None,
                 axis=1,
             )
+
+            # Remove "NFO:" from the index 
+            # Example "NFO:ACC21AUGFUT" -- > "ACC21AUGFUT"
             res_df.index = (
                 res_df.index.to_series().apply(lambda x: x.split(":")[1]).tolist()
             )
-        else:
 
+        # If today is not last traded date i.e. a holiday/weekend
+        else:
+            # Get day before last traded date's futures dataframe
             res_df = kf.ka.pg.get_postgres_data_df_with_condition(
                 table_name="stock_futures_history_day",
                 where_condition="where CAST(last_update AS DATE) "
@@ -1129,6 +1187,10 @@ class Gainers_Losers_OI(APIView):
             res_df.columns.values[-3] = "past_oi"
             res_indx = res_df["ticker"]
 
+
+            # Get Last traded date's dataframe from the database
+            # Combine previous days futures df with todays futures df using pd.concat(),
+            # apply the formula ( (current oi - prev oi) / prev oi ) * 100
             res_df = pd.concat(
                 [
                     res_df,
@@ -1148,11 +1210,14 @@ class Gainers_Losers_OI(APIView):
             )
             res_df.index = res_indx
 
+        # Drop the 'NA' values and sort the dataframe to get top gainers and losers
         res_df.dropna(inplace=True)
         res_df.sort_values(ascending=False, inplace=True)
 
         res_df = res_df.round(2)
 
+        # Check if "ret_df" parameter is True. If True simply return
+        # The dataframe in json format. If not return ChartJS response.
         if ret_df:
             if gainers_or_losers == "GAINERS":
                 return Response(
@@ -1176,6 +1241,7 @@ class Gainers_Losers_OI(APIView):
                     )
                 )
 
+            # This block would be executed when gainers_or_losers == "BOTH" 
             return Response(
                 dict(
                     gainers=res_df[res_df > 0]
@@ -1192,6 +1258,30 @@ class Gainers_Losers_OI(APIView):
             )
 
         ####################### chartjs ########################
+
+        '''
+
+        Gainers Losers ChartJS class is returned by gl_bargraph() function. 
+        This function takes the following parameters:
+
+        :param data1: list of bargraph data,
+        Here it would be the list of percentages of the top gainers/losers
+
+        :param yaxis_labels: List of labels for the corresponding bars.
+        :param y_label: String label for Y-axis.
+        :param top_label: String label for the top of the chart.
+        :param barcolor: String Color name for the color of bar. Default is "GREEN"
+        
+        :param position: String position for the bars alignment. 
+        Takes 'left' or 'right'. Default is 'left'. Works in opposing fashion 
+        for bars with negative values (Losers).
+
+        :param len1: Integer representing the length of 1st bardata. 
+        Required for the case of "BOTH", otherwise is optional.
+        :param len2: Integer representing the length of 1st bardata. 
+        Required for the case of "BOTH", otherwise is optional.
+
+        '''
 
         if gainers_or_losers == "GAINERS":
             NewChart = gl_bargraph(
@@ -1254,5 +1344,4 @@ class Gainers_Losers_OI(APIView):
 
         ####################### chartjs ########################
         return Response(json.loads(NewChart.get()))
-
-        # return Response({"statusCode":200})
+        

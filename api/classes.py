@@ -474,7 +474,6 @@ class KiteFunctions(KiteAuthentication):
         #**********************************************************************************************************
         #**********************************************************************************************************
         if (from_date is None) and (to_date is None):
-            # print("From to dates none")
             stock_df = None
             if gnlr_type == "STOCKS":
                 stock_df = (
@@ -516,7 +515,7 @@ class KiteFunctions(KiteAuthentication):
                         )
                     )
                 ]
-                # breakpoint()
+                
                 stock_df = pd.concat(
                     [
                         stock_df,
@@ -526,7 +525,6 @@ class KiteFunctions(KiteAuthentication):
                 )
                 stock_df.columns.values[-1] = "exchange_tradingsymbol"
 
-        # if from_date is None and to_date is None:
             res_df = (
                 pd.DataFrame(self.kite.quote(stock_df["exchange_tradingsymbol"].tolist()))
                 .transpose()
@@ -552,7 +550,7 @@ class KiteFunctions(KiteAuthentication):
             res_df.dropna(inplace=True)
             res_df.sort_values(by="percent_diff", ascending=False, inplace=True)
             res_df = res_df.round(2)
-            # breakpoint()
+            
             return res_df
 
         #**********************************************************************************************************
@@ -568,9 +566,9 @@ class KiteFunctions(KiteAuthentication):
                                     from_date
                                 ),
                             )
-                    # breakpoint()
+                    
                     res_df.index = res_df.apply(lambda x: "NSE:" + x["ticker"], axis=1)
-                    # breakpoint()
+                    
                     res_df = pd.concat(
                         [
                             res_df,
@@ -583,23 +581,23 @@ class KiteFunctions(KiteAuthentication):
                         lambda x: [
                         x['close'],
                         x['last_price'],
-                        x['close']-x['last_price'],
-                        (x["close"] - x["last_price"]) / x["close"] * 100]
+                        x['last_price']-x['close'],
+                        (x["last_price"]-x["close"]) / x["close"] * 100]
                         if x["close"] != 0
                         else [x["close"], x["last_price"], None, None],
                         axis=1,
                     )
-                    # breakpoint()
+                    
                     res_df = pd.DataFrame(
                         res_df.to_list(),
                         index=res_df.index.to_series().apply(lambda x: x.split(":")[1]).tolist(),
                         columns=["prev_close", "curr_close", "diff", "percent_diff"],
                     )
-                    # breakpoint()
+                    
                     res_df.dropna(inplace=True)
                     res_df.sort_values(by="percent_diff", ascending=False, inplace=True)
                     res_df = res_df.round(2)
-                    # breakpoint()
+                    
                     return res_df
 
                 elif gnlr_type == "INDICES":
@@ -609,9 +607,9 @@ class KiteFunctions(KiteAuthentication):
                                     from_date
                                 ),
                             )
-                    # breakpoint()
+                
                     res_df.index = res_df.apply(lambda x: "NSE:" + x["ticker"], axis=1)
-                    # breakpoint()
+                    
                     res_df = pd.concat(
                         [
                             res_df,
@@ -624,23 +622,23 @@ class KiteFunctions(KiteAuthentication):
                         lambda x: [
                         x['close'],
                         x['last_price'],
-                        x['close']-x['last_price'],
-                        (x["close"] - x["last_price"]) / x["close"] * 100]
+                        x['last_price']-x['close'],
+                        (x["last_price"]-x["close"]) / x["close"] * 100]
                         if x["close"] != 0
                         else [x["close"], x["last_price"], None, None],
                         axis=1,
                     )
-                    # breakpoint()
+                    
                     res_df = pd.DataFrame(
                         res_df.to_list(),
                         index=res_df.index.to_series().apply(lambda x: x.split(":")[1]).tolist(),
                         columns=["prev_close", "curr_close", "diff", "percent_diff"],
                     )
-                    # breakpoint()
+                    
                     res_df.dropna(inplace=True)
                     res_df.sort_values(by="percent_diff", ascending=False, inplace=True)
                     res_df = res_df.round(2)
-                    # breakpoint()
+                    
                     return res_df
 
                 elif gnlr_type == "FUTURES": 
@@ -653,9 +651,9 @@ class KiteFunctions(KiteAuthentication):
                                     expiry_date
                                 ),
                             )
-                    # breakpoint()
+                    
                     res_df.index = res_df.apply(lambda x: "NFO:" + x["ticker"], axis=1)
-                    # breakpoint()
+                    
                     res_df = pd.concat(
                         [
                             res_df,
@@ -668,23 +666,23 @@ class KiteFunctions(KiteAuthentication):
                         lambda x: [
                         x['close'],
                         x['last_price'],
-                        x['close']-x['last_price'],
-                        (x["close"] - x["last_price"]) / x["close"] * 100]
+                        x['last_price']-x['close'],
+                        (x["last_price"]-x["close"]) / x["close"] * 100]
                         if x["close"] != 0
                         else [x["close"], x["last_price"], None, None],
                         axis=1,
                     )
-                    # breakpoint()
+                    
                     res_df = pd.DataFrame(
                         res_df.to_list(),
                         index=res_df.index.to_series().apply(lambda x: x.split(":")[1]).tolist(),
                         columns=["prev_close", "curr_close", "diff", "percent_diff"],
                     )
-                    # breakpoint()
+                    
                     res_df.dropna(inplace=True)
                     res_df.sort_values(by="percent_diff", ascending=False, inplace=True)
                     res_df = res_df.round(2)
-                    # breakpoint()
+                    
                     return res_df
             else:
 
@@ -695,10 +693,10 @@ class KiteFunctions(KiteAuthentication):
                                     from_date
                                 ),
                             )
-                    # breakpoint()
+                    
                     res_df.columns.values[6] = "prev_close"
                     res_indx = res_df['ticker']
-                    # breakpoint()
+                    
                     res_df = pd.concat(
                     [
                         res_df,
@@ -714,23 +712,23 @@ class KiteFunctions(KiteAuthentication):
                         lambda x: [
                         x['prev_close'],
                         x['close'],
-                        x['prev_close']-x['close'],
+                        x['close']-x['prev_close'],
                         (x["close"] - x["prev_close"]) / x["prev_close"] * 100]
                         if x["prev_close"] != 0
                         else [x["prev_close"], x["close"], None, None],
                         axis=1,
                     )
-                    # breakpoint()
+                    
                     res_df = pd.DataFrame(
                         res_df.to_list(),
                         index=res_indx,
                         columns=["prev_close", "curr_close", "diff", "percent_diff"],
                     )
-                    # breakpoint()
+                    
                     res_df.dropna(inplace=True)
                     res_df.sort_values(by="percent_diff", ascending=False, inplace=True)
                     res_df = res_df.round(2)
-                    # breakpoint()
+                    
                     return res_df
 
                 elif gnlr_type == "INDICES":
@@ -740,10 +738,10 @@ class KiteFunctions(KiteAuthentication):
                                     from_date
                                 ),
                             )
-                    # breakpoint()
+                    
                     res_df.columns.values[6] = "prev_close"
                     res_indx = res_df['ticker']
-                    # breakpoint()
+                    
                     res_df = pd.concat(
                     [
                         res_df,
@@ -759,23 +757,23 @@ class KiteFunctions(KiteAuthentication):
                         lambda x: [
                         x['prev_close'],
                         x['close'],
-                        x['prev_close']-x['close'],
+                        x['close']-x['prev_close'],
                         (x["close"] - x["prev_close"]) / x["prev_close"] * 100]
                         if x["prev_close"] != 0
                         else [x["prev_close"], x["close"], None, None],
                         axis=1,
                     )
-                    # breakpoint()
+                    
                     res_df = pd.DataFrame(
                         res_df.to_list(),
                         index=res_indx,
                         columns=["prev_close", "curr_close", "diff", "percent_diff"],
                     )
-                    # breakpoint()
+                    
                     res_df.dropna(inplace=True)
                     res_df.sort_values(by="percent_diff", ascending=False, inplace=True)
                     res_df = res_df.round(2)
-                    # breakpoint()
+                    
                     return res_df
 
                 elif gnlr_type == "FUTURES": # 7.32 secs number -> 5
@@ -788,10 +786,10 @@ class KiteFunctions(KiteAuthentication):
                                     expiry_date
                                 ),
                             )
-                    # breakpoint()
+                    
                     res_df.columns.values[6] = "prev_close"
                     res_indx = res_df['ticker']
-                    # breakpoint()
+                    
                     res_df = pd.concat(
                     [
                         res_df,
@@ -810,23 +808,23 @@ class KiteFunctions(KiteAuthentication):
                         lambda x: [
                         x['prev_close'],
                         x['close'],
-                        x['prev_close']-x['close'],
+                        x['close']-x['prev_close'],
                         (x["close"] - x["prev_close"]) / x["prev_close"] * 100]
                         if x["prev_close"] != 0
                         else [x["prev_close"], x["close"], None, None],
                         axis=1,
                     )
-                    # breakpoint()
+                    
                     res_df = pd.DataFrame(
                         res_df.to_list(),
                         index=res_indx,
                         columns=["prev_close", "curr_close", "diff", "percent_diff"],
                     )
-                    # breakpoint()
+                    
                     res_df.dropna(inplace=True)
                     res_df.sort_values(by="percent_diff", ascending=False, inplace=True)
                     res_df = res_df.round(2)
-                    # breakpoint()
+                    
                     return res_df
 
 
@@ -838,9 +836,9 @@ class KiteFunctions(KiteAuthentication):
                                 from_date
                             ),
                         )
-                # breakpoint()
+                
                 res_df.index = res_df.apply(lambda x: "NSE:" + x["ticker"], axis=1)
-                # breakpoint()
+                
                 res_df = pd.concat(
                     [
                         res_df,
@@ -851,25 +849,25 @@ class KiteFunctions(KiteAuthentication):
                     axis=1,
                 ).apply(
                     lambda x: [
-                   x['close'],
-                    x['last_price'],
-                    x['close']-x['last_price'],
-                    (x["close"] - x["last_price"]) / x["close"] * 100]
+                        x['close'],
+                        x['last_price'],
+                        x['last_price']-x['close'],
+                        (x["last_price"]-x["close"]) / x["close"] * 100]
                     if x["close"] != 0
                     else [x["close"], x["last_price"], None, None],
                     axis=1,
                 )
-                # breakpoint()
+                
                 res_df = pd.DataFrame(
                     res_df.to_list(),
                     index=res_df.index.to_series().apply(lambda x: x.split(":")[1]).tolist(),
                     columns=["prev_close", "curr_close", "diff", "percent_diff"],
                 )
-                # breakpoint()
+                
                 res_df.dropna(inplace=True)
                 res_df.sort_values(by="percent_diff", ascending=False, inplace=True)
                 res_df = res_df.round(2)
-                # breakpoint()
+                
                 return res_df
 
             elif gnlr_type == "INDICES":
@@ -879,9 +877,9 @@ class KiteFunctions(KiteAuthentication):
                                 from_date
                             ),
                         )
-                # breakpoint()
+                
                 res_df.index = res_df.apply(lambda x: "NSE:" + x["ticker"], axis=1)
-                # breakpoint()
+                
                 res_df = pd.concat(
                     [
                         res_df,
@@ -892,25 +890,25 @@ class KiteFunctions(KiteAuthentication):
                     axis=1,
                 ).apply(
                     lambda x: [
-                   x['close'],
-                    x['last_price'],
-                    x['close']-x['last_price'],
-                    (x["close"] - x["last_price"]) / x["close"] * 100]
+                        x['close'],
+                        x['last_price'],
+                        x['last_price']-x['close'],
+                        (x["last_price"]-x["close"]) / x["close"] * 100]
                     if x["close"] != 0
                     else [x["close"], x["last_price"], None, None],
                     axis=1,
                 )
-                # breakpoint()
+                
                 res_df = pd.DataFrame(
                     res_df.to_list(),
                     index=res_df.index.to_series().apply(lambda x: x.split(":")[1]).tolist(),
                     columns=["prev_close", "curr_close", "diff", "percent_diff"],
                 )
-                # breakpoint()
+                
                 res_df.dropna(inplace=True)
                 res_df.sort_values(by="percent_diff", ascending=False, inplace=True)
                 res_df = res_df.round(2)
-                # breakpoint()
+                
                 return res_df
 
             elif gnlr_type == "FUTURES": 
@@ -923,9 +921,9 @@ class KiteFunctions(KiteAuthentication):
                                 expiry_date
                             ),
                         )
-                # breakpoint()
+                
                 res_df.index = res_df.apply(lambda x: "NFO:" + x["ticker"], axis=1)
-                # breakpoint()
+                
                 res_df = pd.concat(
                     [
                         res_df,
@@ -936,27 +934,30 @@ class KiteFunctions(KiteAuthentication):
                     axis=1,
                 ).apply(
                     lambda x: [
-                   x['close'],
-                    x['last_price'],
-                    x['close']-x['last_price'],
-                    (x["close"] - x["last_price"]) / x["close"] * 100]
+                        x['close'],
+                        x['last_price'],
+                        x['last_price']-x['close'],
+                        (x["last_price"]-x["close"]) / x["close"] * 100]
                     if x["close"] != 0
                     else [x["close"], x["last_price"], None, None],
                     axis=1,
                 )
-                # breakpoint()
+                
                 res_df = pd.DataFrame(
                     res_df.to_list(),
                     index=res_df.index.to_series().apply(lambda x: x.split(":")[1]).tolist(),
                     columns=["prev_close", "curr_close", "diff", "percent_diff"],
                 )
-                # breakpoint()
+                
                 res_df.dropna(inplace=True)
                 res_df.sort_values(by="percent_diff", ascending=False, inplace=True)
                 res_df = res_df.round(2)
-                # breakpoint()
-                return res_df
                 
+                return res_df
+
+        #**********************************************************************************************************
+        #**********************************************************************************************************
+
 
         
 
