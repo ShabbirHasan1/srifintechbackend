@@ -13,5 +13,6 @@ urlpatterns = [
    url( r'^montecarlo/?$', views.Get_MonteCarlo_Simulation.as_view(),name ='montecarlo') ,
    url( r'^kiteauth/?$', views.Get_KiteAuth.as_view(),name ='kiteauth') ,
    url( r'^ltp/?$', views.Get_ltp_ticker.as_view(),name ='ltp') ,
+   url( r'^optionchain/?$', views.Option_Chain.as_view(),name ='optionchain') ,
    url( r'$', views.Home, name ='home'),
 ]

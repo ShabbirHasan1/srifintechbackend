@@ -10,11 +10,13 @@ from sqlalchemy import create_engine
 
 from api.classes import KiteAuthentication, KiteFunctions, MonteCarlo_Simulation, OIAnalysis, PostgreSQLOperations
 from api.chartjs_classes import *
+from api.implied_vol import implied_volatility
 import pandas as pd
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
 import json
+import math
 from pytz import timezone
 from django.http import HttpResponse
 import numpy as np
@@ -572,6 +574,162 @@ class Get_ltp_ticker(APIView):
     def get(self , request):
         return Response({'ticker':'NIFTY'})
 
+
+class Option_Chain(APIView):
+    def post(self, request):
+        # ********************************* INPUT PARAMS *******************************************
+        try:
+            ticker = [
+                request.data.get("ticker", None),
+            ]
+            expiry = [
+                datetime.strptime(
+                    request.data.get("expiry_date", None), "%Y-%m-%d"
+                ).date(),
+            ]
+        except Exception as e:
+            return "Error encountered while reading input request:\n" + str(e)
+
+        # ********************************** INPUT PARAMS ******************************************
+
+        kf = KiteFunctions()
+        interval = 450
+
+        df1 = kf.master_instruments_df[
+            (kf.master_instruments_df["exchange"] == "NFO")
+            & (kf.master_instruments_df["segment"] == "NFO-OPT")
+            & (kf.master_instruments_df["name"].isin(ticker))
+            & (kf.master_instruments_df["expiry"].isin(expiry))
+        ]
+        # breakpoint()
+        df1 = pd.concat(
+            [df1, df1.loc[:, "tradingsymbol"].apply(lambda x: "NFO:" + x)], axis=1
+        )
+
+        df1.columns.values[-1] = "exchange_tradingsymbol"
+
+        df1.reset_index(drop=True, inplace=True)
+
+        def roundup(x):
+            return int(math.ceil(x / 1000.0)) * 1000
+
+        def final_func(param):
+            return param
+
+        out_df = pd.DataFrame()
+
+        for i in range(interval, roundup(len(df1.index)), interval):
+            print(str(i - interval) + " - " + str(i))
+            try:
+                out_df = pd.concat(
+                    [
+                        out_df,
+                        pd.DataFrame(
+                            kf.kite.quote(
+                                df1.iloc[i - interval : i][
+                                    "exchange_tradingsymbol"
+                                ].tolist()
+                            )
+                        ).transpose(),
+                    ]
+                )
+            except Exception as e:
+                return "Error encountered while getting quote():\n" + str(e)
+
+            if i > len(df1.index):
+                break
+
+        # breakpoint()
+        out_df.reset_index(inplace=True)
+
+        out_df.columns.values[0] = "exchange_tradingsymbol"
+
+        out_df.columns.values[4] = "ltp"
+
+        out_df = df1.merge(
+            out_df.loc[
+                :, ["exchange_tradingsymbol", "volume", "oi", "ohlc", "ltp", "depth"]
+            ],
+            on="exchange_tradingsymbol",
+            how="inner",
+        ).drop(
+            [
+                "instrument_token",
+                "exchange_token",
+                "last_price",
+                "tick_size",
+                "lot_size",
+                "segment",
+                "exchange",
+                "exchange_tradingsymbol",
+                "tradingsymbol",
+                "name",
+                "expiry",
+            ],
+            axis=1,
+        )
+
+        underlying_details = kf.kite.quote(["NSE:" + i for i in ticker])[
+            ["NSE:" + i for i in ticker][0]
+        ]
+
+        days = (expiry[0] - dt.date.today()).days
+
+        out_df = pd.concat(
+            [
+                out_df,
+                pd.DataFrame(
+                    out_df.apply(
+                        lambda x: [
+                            x["ltp"] - x["ohlc"]["close"],
+                            x["depth"]["buy"][0]["quantity"],
+                            x["depth"]["buy"][0]["price"],
+                            x["depth"]["sell"][0]["price"],
+                            x["depth"]["sell"][0]["quantity"],
+                            implied_volatility(
+                                x["instrument_type"],
+                                underlying_details["last_price"],
+                                x["strike"],
+                                days,
+                                0.04,
+                                x["ltp"],
+                            ),
+                        ],
+                        axis=1,
+                    ).tolist(),
+                    columns=[
+                        "chng",
+                        "bid qty",
+                        "bid price",
+                        "ask price",
+                        "ask qty",
+                        "iv",
+                    ],
+                ),
+            ],
+            axis=1,
+        ).drop(["depth", "ohlc"], axis=1)
+
+        def func(var):
+            if var in [float("inf"), float("-inf")]:
+                return None
+            x = "%.2f" % var
+            if len(str(x)) > 7:
+                return None
+            else:
+                return x
+
+        out_df["iv"] = out_df["iv"].apply(lambda var: func(var))
+
+        out_df.set_index(["strike", "instrument_type"], inplace=True)
+
+        return Response(
+            out_df.fillna("-")
+            .round(2)
+            .groupby(level=0)
+            .apply(lambda df: df.xs(df.name).to_dict("index"))
+            .to_dict()
+        )
 
 
 
