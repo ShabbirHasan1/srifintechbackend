@@ -562,7 +562,7 @@ class KiteFunctions(KiteAuthentication):
                 if gnlr_type == "STOCKS":
                     res_df = self.ka.pg.get_postgres_data_df_with_condition(
                                 table_name="stocks_fno_day",
-                                where_condition="where CAST(last_update AS DATE) = '{}' ".format(
+                                where_condition="where CAST(date AS DATE) = '{}' ".format(
                                     from_date
                                 ),
                             )
@@ -603,7 +603,7 @@ class KiteFunctions(KiteAuthentication):
                 elif gnlr_type == "INDICES":
                     res_df = self.ka.pg.get_postgres_data_df_with_condition(
                                 table_name="index_fno_day",
-                                where_condition="where CAST(last_update AS DATE) = '{}' ".format(
+                                where_condition="where CAST(date AS DATE) = '{}' ".format(
                                     from_date
                                 ),
                             )
@@ -644,7 +644,7 @@ class KiteFunctions(KiteAuthentication):
                 elif gnlr_type == "FUTURES": 
                     res_df = self.ka.pg.get_postgres_data_df_with_condition(
                                 table_name="stock_futures_history_day",
-                                where_condition="where CAST(last_update AS DATE) = '{}' ".format(
+                                where_condition="where CAST(date AS DATE) = '{}' ".format(
                                     from_date
                                 )+
                                 "and CAST(expiry_date as DATE) = '{}'".format(
@@ -689,7 +689,7 @@ class KiteFunctions(KiteAuthentication):
                 if gnlr_type == "STOCKS":
                     res_df = self.ka.pg.get_postgres_data_df_with_condition(
                                 table_name="stocks_fno_day",
-                                where_condition="where CAST(last_update AS DATE) = '{}' ".format(
+                                where_condition="where CAST(date AS DATE) = '{}' ".format(
                                     from_date
                                 ),
                             )
@@ -702,7 +702,7 @@ class KiteFunctions(KiteAuthentication):
                         res_df,
                         self.ka.pg.get_postgres_data_df_with_condition(
                             table_name="stocks_fno_day",
-                            where_condition="where CAST(last_update AS DATE) = '{}' ".format(
+                            where_condition="where CAST(date AS DATE) = '{}' ".format(
                                 to_date
                             ),
                         ),
@@ -734,7 +734,7 @@ class KiteFunctions(KiteAuthentication):
                 elif gnlr_type == "INDICES":
                     res_df = self.ka.pg.get_postgres_data_df_with_condition(
                                 table_name="index_fno_day",
-                                where_condition="where CAST(last_update AS DATE) = '{}' ".format(
+                                where_condition="where CAST(date AS DATE) = '{}' ".format(
                                     from_date
                                 ),
                             )
@@ -747,7 +747,7 @@ class KiteFunctions(KiteAuthentication):
                         res_df,
                         self.ka.pg.get_postgres_data_df_with_condition(
                             table_name="index_fno_day",
-                            where_condition="where CAST(last_update AS DATE) = '{}' ".format(
+                            where_condition="where CAST(date AS DATE) = '{}' ".format(
                                 to_date
                             ),
                         ),
@@ -779,7 +779,7 @@ class KiteFunctions(KiteAuthentication):
                 elif gnlr_type == "FUTURES": # 7.32 secs number -> 5
                     res_df = self.ka.pg.get_postgres_data_df_with_condition(
                                 table_name="stock_futures_history_day",
-                                where_condition="where CAST(last_update AS DATE) = '{}' ".format(
+                                where_condition="where CAST(date AS DATE) = '{}' ".format(
                                     from_date
                                 )+
                                 "and CAST(expiry_date as DATE) = '{}'".format(
@@ -795,7 +795,7 @@ class KiteFunctions(KiteAuthentication):
                         res_df,
                         self.ka.pg.get_postgres_data_df_with_condition(
                             table_name="stock_futures_history_day",
-                            where_condition="where CAST(last_update AS DATE) = '{}' ".format(
+                            where_condition="where CAST(date AS DATE) = '{}' ".format(
                                 to_date
                             )+
                             "and CAST(expiry_date as DATE) = '{}'".format(
@@ -832,7 +832,7 @@ class KiteFunctions(KiteAuthentication):
             if gnlr_type == "STOCKS":
                 res_df = self.ka.pg.get_postgres_data_df_with_condition(
                             table_name="stocks_fno_day",
-                            where_condition="where CAST(last_update AS DATE) = '{}' ".format(
+                            where_condition="where CAST(date AS DATE) = '{}' ".format(
                                 from_date
                             ),
                         )
@@ -873,7 +873,7 @@ class KiteFunctions(KiteAuthentication):
             elif gnlr_type == "INDICES":
                 res_df = self.ka.pg.get_postgres_data_df_with_condition(
                             table_name="index_fno_day",
-                            where_condition="where CAST(last_update AS DATE) = '{}' ".format(
+                            where_condition="where CAST(date AS DATE) = '{}' ".format(
                                 from_date
                             ),
                         )
@@ -914,7 +914,7 @@ class KiteFunctions(KiteAuthentication):
             elif gnlr_type == "FUTURES": 
                 res_df = self.ka.pg.get_postgres_data_df_with_condition(
                             table_name="stock_futures_history_day",
-                            where_condition="where CAST(last_update AS DATE) = '{}' ".format(
+                            where_condition="where CAST(date AS DATE) = '{}' ".format(
                                 from_date
                             )+
                             "and CAST(expiry_date as DATE) = '{}'".format(

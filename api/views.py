@@ -565,8 +565,7 @@ class Get_ltp_ticker(APIView):
         try:
             kf = KiteFunctions()
         except Exception as e:
-            return_text = 'Error encountered # ' + e
-            return return_text
+            return Response({"Error encountered #:\n": str(e)})
         ltp = kf.get_ltp(ticker=ticker)
 
         return Response(str(ltp))
@@ -587,7 +586,7 @@ class Option_Chain(APIView):
                 ).date(),
             ]
         except Exception as e:
-            return "Error encountered while reading input request:\n" + str(e)
+            return Response({"Error encountered while reading input request:\n": str(e)})
 
         # ********************************** INPUT PARAMS ******************************************
 
@@ -746,7 +745,7 @@ class Get_Straddle_Prices(APIView):
             ).date()
 
         except Exception as e:
-            return "Error encountered while reading input request:\n" + e
+            return Response({"Error encountered while reading input request:\n": str(e)})
         straddle_strike_list = content.get("strikes_list", [])
         intraday_ind = content.get("intraday_ind", True)
         ####################### Input parameters #####################
@@ -916,7 +915,7 @@ class Get_Strangle_Prices(APIView):
             ]
 
         except Exception as e:
-            return "Error encountered while reading input request:\n" + e
+            return Response({"Error encountered while reading input request:\n": str(e)})
         intraday_ind = content.get("intraday_ind", True)
         ####################### Input parameters #####################
 
@@ -1088,7 +1087,7 @@ class Gainers_Losers(APIView):
             from_date = request.data.get("from_date", None)
             to_date = request.data.get("to_date", None)
         except Exception as e:
-            return "Error encountered while reading input request:\n" + str(e)
+            return Response({"Error encountered while reading input request:\n": str(e)})
 
         # ********************************** INPUT PARAMS ******************************************
 
@@ -1254,7 +1253,7 @@ class Gainers_Losers_OI(APIView):
                 request.data.get("expiry_date", None), "%Y-%m-%d"
             ).date()
         except Exception as e:
-            return "Error encountered while reading input request:\n" + str(e)
+            return Response({"Error encountered while reading input request:\n": str(e)})
 
         # ********************************** INPUT PARAMS ******************************************
 
