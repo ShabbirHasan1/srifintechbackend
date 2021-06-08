@@ -1502,6 +1502,56 @@ class Gainers_Losers_OI(APIView):
         ####################### chartjs ########################
         return Response(json.loads(NewChart.get()))
         
-class Cash_Fututres_Arbitrage(APIView):
+class Cash_Futures_Arbitrage(APIView):
     def post(self,request):
-        return Response({"statusCode":200})
+        kf = KiteFunctions()
+        exclude_list = ["NIFTY","FINNIFTY","BANKNIFTY"]
+        stock_df = kf.master_instruments_df[(kf.master_instruments_df["segment"]=="NFO-FUT")
+                                 & ~ (kf.master_instruments_df["name"].isin(exclude_list))
+                                 & (kf.master_instruments_df["expiry"]==kf.master_instruments_df[
+                                     (kf.master_instruments_df["segment"]=="NFO-FUT")
+                                      & ~ (kf.master_instruments_df["name"].isin(exclude_list))]["expiry"].min())]
+
+        stock_df = pd.concat([stock_df,stock_df.loc[:,"tradingsymbol"].apply(lambda x:"NFO:"+x)],axis=1)
+
+        stock_df.columns.values[-1] = "exchange_tradingsymbol"
+
+        stock_df["exchange_name"] = stock_df.apply(lambda x:"NSE:"+x["name"],axis=1)
+
+        stock_df.reset_index(drop=True,inplace=True)
+
+        stock_df = pd.concat([stock_df,pd.DataFrame(kf.kite.quote(stock_df[
+            "exchange_name"].tolist())).transpose()[
+            'last_price'].reset_index(drop=True)],axis=1)
+
+        stock_df.columns.values[-1] = "stock_price"
+
+        stock_df = pd.concat([stock_df,pd.DataFrame(kf.kite.quote(stock_df[
+            "exchange_tradingsymbol"].tolist())).transpose()[
+            'last_price'].reset_index(drop=True)],axis=1)
+
+        stock_df.columns.values[-1] = "futures_price"
+
+        stock_df = stock_df.apply(lambda x:[
+            x['name'],
+            x['stock_price'],
+            x['futures_price'],
+            x['stock_price'] - x['futures_price'],
+            ((x['stock_price'] - x['futures_price']) / x['stock_price'])*100
+        ]
+            if x['stock_price'] !=0 else
+            [
+            x['name'],
+            x['stock_price'],
+            x['futures_price'],
+            None,
+            None],axis=1)
+
+        stock_df = pd.DataFrame(stock_df.to_list(),columns = ["FNO Stocks","Stock Price","Futures Price","Price Change","Change in %"])
+
+        stock_df.index = stock_df['FNO Stocks']
+
+        stock_df.drop(labels=["FNO Stocks"],axis=1,inplace=True)
+
+        stock_df = stock_df.round(2)
+        return Response(stock_df.to_dict("index"))
