@@ -13,6 +13,7 @@ urlpatterns = [
    url( r'^montecarlo/?$', views.Get_MonteCarlo_Simulation.as_view(),name ='montecarlo') ,
    url( r'^kiteauth/?$', views.Get_KiteAuth.as_view(),name ='kiteauth') ,
    url( r'^ltp/?$', views.Get_ltp_ticker.as_view(),name ='ltp') ,
+   url( r'^optionchain/?$', views.Option_Chain.as_view(),name ='optionchain') ,
    url( r'^straddleprices/?$', views.Get_Straddle_Prices.as_view(),name ='straddle') ,
    url( r'^strangleprices/?$', views.Get_Strangle_Prices.as_view(),name ='strangle') ,
    url( r'^gainerslosers/?$', views.Gainers_Losers.as_view(),name ='gainerslosers') ,
