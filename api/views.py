@@ -574,7 +574,6 @@ class Get_ltp_ticker(APIView):
     def get(self , request):
         return Response({'ticker':'NIFTY'})
 
-
 class Option_Chain(APIView):
     def post(self, request):
         # ********************************* INPUT PARAMS *******************************************
@@ -731,5 +730,7 @@ class Option_Chain(APIView):
             .to_dict()
         )
 
-
+class Cash_Fututres_Arbitrage(APIView):
+    def post(self,request):
+        return Response({"statusCode":200})
 
