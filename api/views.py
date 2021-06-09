@@ -1511,7 +1511,7 @@ class Get_Cumulative_OI(APIView):
             oi_df = oi.get_oi_df_today(ticker , expiry_date )
 
         call_oi  = oi_df['calloi'].sum() # this value if one bar
-        put_oi = oi_df['putoi'].sum()# and this for the other bar
+        put_oi = oi_df['putoi'].sum()# and this for the other
 
         ### here MyChart is the chart you will create n other else is same
 

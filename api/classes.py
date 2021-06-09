@@ -18,6 +18,7 @@ from matplotlib.figure import Figure
 from sqlalchemy import create_engine
 from sqlalchemy import Table, MetaData
 from collections import OrderedDict
+from datetime import datetime,date,timedelta
 
 import logging
 from pprint import pformat
@@ -64,7 +65,7 @@ class KiteAuthentication:
     def get_login(self):
         if self.debug:
             print('Authentication in progress with request token #', self.request_token)
-			
+            
         try:
             if self.debug:
                 print(f'Trying with access token # {self.access_token}')
@@ -467,6 +468,497 @@ class KiteFunctions(KiteAuthentication):
         last_traded_dates['last_traded_date-1'] = nifty_df.index[-2].to_pydatetime().date()
         
         return last_traded_dates
+
+    # Should add last traded date comparision ...
+    def get_gainers_losers_close_df(self, gnlr_type, expiry_date=None,from_date=None,to_date=None):
+        #**********************************************************************************************************
+        #**********************************************************************************************************
+        if (from_date is None) and (to_date is None):
+            stock_df = None
+            if gnlr_type == "STOCKS":
+                stock_df = (
+                    self.master_instruments_df[
+                        self.master_instruments_df["segment"] == "NFO-FUT"
+                    ]
+                    .groupby("name")
+                    .first()
+                    .reset_index()
+                )
+
+                stock_df["exchange_tradingsymbol"] = stock_df.apply(
+                    lambda x: "NSE:" + x["name"], axis=1
+                )
+
+            elif gnlr_type == "INDICES":
+                stock_df = (
+                    self.master_instruments_df[
+                        (self.master_instruments_df["segment"] == "INDICES")
+                        & (self.master_instruments_df["exchange"] == "NSE")
+                        & ~(self.master_instruments_df["name"] == "NIFTY50 DIV POINT")
+                    ]
+                    .groupby("name")
+                    .first()
+                    .reset_index()
+                )
+
+                stock_df["exchange_tradingsymbol"] = stock_df.apply(
+                    lambda x: "NSE:" + x["name"], axis=1
+                )
+
+            elif  gnlr_type == "FUTURES":
+                stock_df = self.master_instruments_df[
+                    (self.master_instruments_df["segment"] == "NFO-FUT")
+                    & (self.master_instruments_df["expiry"] == expiry_date)
+                    & ~(
+                        self.master_instruments_df["name"].isin(
+                            ["NIFTY", "BANKNIFTY", "FINNIFTY"]
+                        )
+                    )
+                ]
+                
+                stock_df = pd.concat(
+                    [
+                        stock_df,
+                        stock_df.loc[:, "tradingsymbol"].apply(lambda x: "NFO:" + x),
+                    ],
+                    axis=1,
+                )
+                stock_df.columns.values[-1] = "exchange_tradingsymbol"
+
+            res_df = (
+                pd.DataFrame(self.kite.quote(stock_df["exchange_tradingsymbol"].tolist()))
+                .transpose()
+                .apply(
+                    lambda x: [
+                        x["last_price"],
+                        x["ohlc"]["close"],
+                        x["last_price"] - x["ohlc"]["close"],
+                        ((x["last_price"] - x["ohlc"]["close"]) / x["ohlc"]["close"]) * 100,
+                    ]
+                    if x["ohlc"]["close"] != 0
+                    else [x["last_price"], x["ohlc"]["close"], None, None],
+                    axis=1,
+                )
+            )
+
+            res_df = pd.DataFrame(
+                res_df.to_list(),
+                index=res_df.index.to_series().apply(lambda x: x.split(":")[1]).tolist(),
+                columns=["prev_close", "curr_close", "diff", "percent_diff"],
+            )
+
+            res_df.dropna(inplace=True)
+            res_df.sort_values(by="percent_diff", ascending=False, inplace=True)
+            res_df = res_df.round(2)
+            
+            return res_df
+
+        #**********************************************************************************************************
+        #**********************************************************************************************************
+
+        elif (from_date is not None) and (to_date is not None):
+            
+            if to_date == date.today():
+                if gnlr_type == "STOCKS":
+                    res_df = self.ka.pg.get_postgres_data_df_with_condition(
+                                table_name="stocks_fno_day",
+                                where_condition="where CAST(date AS DATE) = '{}' ".format(
+                                    from_date
+                                ),
+                            )
+                    
+                    res_df.index = res_df.apply(lambda x: "NSE:" + x["ticker"], axis=1)
+                    
+                    res_df = pd.concat(
+                        [
+                            res_df,
+                            pd.DataFrame(
+                                self.kite.quote(res_df.index.tolist())
+                            ).transpose(),
+                        ],
+                        axis=1,
+                    ).apply(
+                        lambda x: [
+                        x['close'],
+                        x['last_price'],
+                        x['last_price']-x['close'],
+                        (x["last_price"]-x["close"]) / x["close"] * 100]
+                        if x["close"] != 0
+                        else [x["close"], x["last_price"], None, None],
+                        axis=1,
+                    )
+                    
+                    res_df = pd.DataFrame(
+                        res_df.to_list(),
+                        index=res_df.index.to_series().apply(lambda x: x.split(":")[1]).tolist(),
+                        columns=["prev_close", "curr_close", "diff", "percent_diff"],
+                    )
+                    
+                    res_df.dropna(inplace=True)
+                    res_df.sort_values(by="percent_diff", ascending=False, inplace=True)
+                    res_df = res_df.round(2)
+                    
+                    return res_df
+
+                elif gnlr_type == "INDICES":
+                    res_df = self.ka.pg.get_postgres_data_df_with_condition(
+                                table_name="index_fno_day",
+                                where_condition="where CAST(date AS DATE) = '{}' ".format(
+                                    from_date
+                                ),
+                            )
+                
+                    res_df.index = res_df.apply(lambda x: "NSE:" + x["ticker"], axis=1)
+                    
+                    res_df = pd.concat(
+                        [
+                            res_df,
+                            pd.DataFrame(
+                                self.kite.quote(res_df.index.tolist())
+                            ).transpose(),
+                        ],
+                        axis=1,
+                    ).apply(
+                        lambda x: [
+                        x['close'],
+                        x['last_price'],
+                        x['last_price']-x['close'],
+                        (x["last_price"]-x["close"]) / x["close"] * 100]
+                        if x["close"] != 0
+                        else [x["close"], x["last_price"], None, None],
+                        axis=1,
+                    )
+                    
+                    res_df = pd.DataFrame(
+                        res_df.to_list(),
+                        index=res_df.index.to_series().apply(lambda x: x.split(":")[1]).tolist(),
+                        columns=["prev_close", "curr_close", "diff", "percent_diff"],
+                    )
+                    
+                    res_df.dropna(inplace=True)
+                    res_df.sort_values(by="percent_diff", ascending=False, inplace=True)
+                    res_df = res_df.round(2)
+                    
+                    return res_df
+
+                elif gnlr_type == "FUTURES": 
+                    res_df = self.ka.pg.get_postgres_data_df_with_condition(
+                                table_name="stock_futures_history_day",
+                                where_condition="where CAST(date AS DATE) = '{}' ".format(
+                                    from_date
+                                )+
+                                "and CAST(expiry_date as DATE) = '{}'".format(
+                                    expiry_date
+                                ),
+                            )
+                    
+                    res_df.index = res_df.apply(lambda x: "NFO:" + x["ticker"], axis=1)
+                    
+                    res_df = pd.concat(
+                        [
+                            res_df,
+                            pd.DataFrame(
+                                self.kite.quote(res_df.index.tolist())
+                            ).transpose(),
+                        ],
+                        axis=1,
+                    ).apply(
+                        lambda x: [
+                        x['close'],
+                        x['last_price'],
+                        x['last_price']-x['close'],
+                        (x["last_price"]-x["close"]) / x["close"] * 100]
+                        if x["close"] != 0
+                        else [x["close"], x["last_price"], None, None],
+                        axis=1,
+                    )
+                    
+                    res_df = pd.DataFrame(
+                        res_df.to_list(),
+                        index=res_df.index.to_series().apply(lambda x: x.split(":")[1]).tolist(),
+                        columns=["prev_close", "curr_close", "diff", "percent_diff"],
+                    )
+                    
+                    res_df.dropna(inplace=True)
+                    res_df.sort_values(by="percent_diff", ascending=False, inplace=True)
+                    res_df = res_df.round(2)
+                    
+                    return res_df
+            else:
+
+                if gnlr_type == "STOCKS":
+                    res_df = self.ka.pg.get_postgres_data_df_with_condition(
+                                table_name="stocks_fno_day",
+                                where_condition="where CAST(date AS DATE) = '{}' ".format(
+                                    from_date
+                                ),
+                            )
+                    
+                    res_df.columns.values[6] = "prev_close"
+                    res_indx = res_df['ticker']
+                    
+                    res_df = pd.concat(
+                    [
+                        res_df,
+                        self.ka.pg.get_postgres_data_df_with_condition(
+                            table_name="stocks_fno_day",
+                            where_condition="where CAST(date AS DATE) = '{}' ".format(
+                                to_date
+                            ),
+                        ),
+                    ],
+                    axis=1,
+                    ).apply(
+                        lambda x: [
+                        x['prev_close'],
+                        x['close'],
+                        x['close']-x['prev_close'],
+                        (x["close"] - x["prev_close"]) / x["prev_close"] * 100]
+                        if x["prev_close"] != 0
+                        else [x["prev_close"], x["close"], None, None],
+                        axis=1,
+                    )
+                    
+                    res_df = pd.DataFrame(
+                        res_df.to_list(),
+                        index=res_indx,
+                        columns=["prev_close", "curr_close", "diff", "percent_diff"],
+                    )
+                    
+                    res_df.dropna(inplace=True)
+                    res_df.sort_values(by="percent_diff", ascending=False, inplace=True)
+                    res_df = res_df.round(2)
+                    
+                    return res_df
+
+                elif gnlr_type == "INDICES":
+                    res_df = self.ka.pg.get_postgres_data_df_with_condition(
+                                table_name="index_fno_day",
+                                where_condition="where CAST(date AS DATE) = '{}' ".format(
+                                    from_date
+                                ),
+                            )
+                    
+                    res_df.columns.values[6] = "prev_close"
+                    res_indx = res_df['ticker']
+                    
+                    res_df = pd.concat(
+                    [
+                        res_df,
+                        self.ka.pg.get_postgres_data_df_with_condition(
+                            table_name="index_fno_day",
+                            where_condition="where CAST(date AS DATE) = '{}' ".format(
+                                to_date
+                            ),
+                        ),
+                    ],
+                    axis=1,
+                    ).apply(
+                        lambda x: [
+                        x['prev_close'],
+                        x['close'],
+                        x['close']-x['prev_close'],
+                        (x["close"] - x["prev_close"]) / x["prev_close"] * 100]
+                        if x["prev_close"] != 0
+                        else [x["prev_close"], x["close"], None, None],
+                        axis=1,
+                    )
+                    
+                    res_df = pd.DataFrame(
+                        res_df.to_list(),
+                        index=res_indx,
+                        columns=["prev_close", "curr_close", "diff", "percent_diff"],
+                    )
+                    
+                    res_df.dropna(inplace=True)
+                    res_df.sort_values(by="percent_diff", ascending=False, inplace=True)
+                    res_df = res_df.round(2)
+                    
+                    return res_df
+
+                elif gnlr_type == "FUTURES": # 7.32 secs number -> 5
+                    res_df = self.ka.pg.get_postgres_data_df_with_condition(
+                                table_name="stock_futures_history_day",
+                                where_condition="where CAST(date AS DATE) = '{}' ".format(
+                                    from_date
+                                )+
+                                "and CAST(expiry_date as DATE) = '{}'".format(
+                                    expiry_date
+                                ),
+                            )
+                    
+                    res_df.columns.values[6] = "prev_close"
+                    res_indx = res_df['ticker']
+                    
+                    res_df = pd.concat(
+                    [
+                        res_df,
+                        self.ka.pg.get_postgres_data_df_with_condition(
+                            table_name="stock_futures_history_day",
+                            where_condition="where CAST(date AS DATE) = '{}' ".format(
+                                to_date
+                            )+
+                            "and CAST(expiry_date as DATE) = '{}'".format(
+                                expiry_date
+                            ),
+                        ),
+                    ],
+                    axis=1,
+                    ).apply(
+                        lambda x: [
+                        x['prev_close'],
+                        x['close'],
+                        x['close']-x['prev_close'],
+                        (x["close"] - x["prev_close"]) / x["prev_close"] * 100]
+                        if x["prev_close"] != 0
+                        else [x["prev_close"], x["close"], None, None],
+                        axis=1,
+                    )
+                    
+                    res_df = pd.DataFrame(
+                        res_df.to_list(),
+                        index=res_indx,
+                        columns=["prev_close", "curr_close", "diff", "percent_diff"],
+                    )
+                    
+                    res_df.dropna(inplace=True)
+                    res_df.sort_values(by="percent_diff", ascending=False, inplace=True)
+                    res_df = res_df.round(2)
+                    
+                    return res_df
+
+
+        elif from_date is not None:
+            if gnlr_type == "STOCKS":
+                res_df = self.ka.pg.get_postgres_data_df_with_condition(
+                            table_name="stocks_fno_day",
+                            where_condition="where CAST(date AS DATE) = '{}' ".format(
+                                from_date
+                            ),
+                        )
+                
+                res_df.index = res_df.apply(lambda x: "NSE:" + x["ticker"], axis=1)
+                
+                res_df = pd.concat(
+                    [
+                        res_df,
+                        pd.DataFrame(
+                            self.kite.quote(res_df.index.tolist())
+                        ).transpose(),
+                    ],
+                    axis=1,
+                ).apply(
+                    lambda x: [
+                        x['close'],
+                        x['last_price'],
+                        x['last_price']-x['close'],
+                        (x["last_price"]-x["close"]) / x["close"] * 100]
+                    if x["close"] != 0
+                    else [x["close"], x["last_price"], None, None],
+                    axis=1,
+                )
+                
+                res_df = pd.DataFrame(
+                    res_df.to_list(),
+                    index=res_df.index.to_series().apply(lambda x: x.split(":")[1]).tolist(),
+                    columns=["prev_close", "curr_close", "diff", "percent_diff"],
+                )
+                
+                res_df.dropna(inplace=True)
+                res_df.sort_values(by="percent_diff", ascending=False, inplace=True)
+                res_df = res_df.round(2)
+                
+                return res_df
+
+            elif gnlr_type == "INDICES":
+                res_df = self.ka.pg.get_postgres_data_df_with_condition(
+                            table_name="index_fno_day",
+                            where_condition="where CAST(date AS DATE) = '{}' ".format(
+                                from_date
+                            ),
+                        )
+                
+                res_df.index = res_df.apply(lambda x: "NSE:" + x["ticker"], axis=1)
+                
+                res_df = pd.concat(
+                    [
+                        res_df,
+                        pd.DataFrame(
+                            self.kite.quote(res_df.index.tolist())
+                        ).transpose(),
+                    ],
+                    axis=1,
+                ).apply(
+                    lambda x: [
+                        x['close'],
+                        x['last_price'],
+                        x['last_price']-x['close'],
+                        (x["last_price"]-x["close"]) / x["close"] * 100]
+                    if x["close"] != 0
+                    else [x["close"], x["last_price"], None, None],
+                    axis=1,
+                )
+                
+                res_df = pd.DataFrame(
+                    res_df.to_list(),
+                    index=res_df.index.to_series().apply(lambda x: x.split(":")[1]).tolist(),
+                    columns=["prev_close", "curr_close", "diff", "percent_diff"],
+                )
+                
+                res_df.dropna(inplace=True)
+                res_df.sort_values(by="percent_diff", ascending=False, inplace=True)
+                res_df = res_df.round(2)
+                
+                return res_df
+
+            elif gnlr_type == "FUTURES": 
+                res_df = self.ka.pg.get_postgres_data_df_with_condition(
+                            table_name="stock_futures_history_day",
+                            where_condition="where CAST(date AS DATE) = '{}' ".format(
+                                from_date
+                            )+
+                            "and CAST(expiry_date as DATE) = '{}'".format(
+                                expiry_date
+                            ),
+                        )
+                
+                res_df.index = res_df.apply(lambda x: "NFO:" + x["ticker"], axis=1)
+                
+                res_df = pd.concat(
+                    [
+                        res_df,
+                        pd.DataFrame(
+                            self.kite.quote(res_df.index.tolist())
+                        ).transpose(),
+                    ],
+                    axis=1,
+                ).apply(
+                    lambda x: [
+                        x['close'],
+                        x['last_price'],
+                        x['last_price']-x['close'],
+                        (x["last_price"]-x["close"]) / x["close"] * 100]
+                    if x["close"] != 0
+                    else [x["close"], x["last_price"], None, None],
+                    axis=1,
+                )
+                
+                res_df = pd.DataFrame(
+                    res_df.to_list(),
+                    index=res_df.index.to_series().apply(lambda x: x.split(":")[1]).tolist(),
+                    columns=["prev_close", "curr_close", "diff", "percent_diff"],
+                )
+                
+                res_df.dropna(inplace=True)
+                res_df.sort_values(by="percent_diff", ascending=False, inplace=True)
+                res_df = res_df.round(2)
+                
+                return res_df
+
+        #**********************************************************************************************************
+        #**********************************************************************************************************
+
+
         
 
 class Charting:
@@ -898,7 +1390,7 @@ class OIAnalysis:
             print('Here is final Dataframe with OpenInterest and Underlying Price.')
             print(self.final_df_with_oi)
         return self.final_df_with_oi
-		
+        
     def get_oi_df_anyday(self, ticker, expiry_date, date):
         #############Input Parameters##############
         self.ticker             = ticker.upper()
@@ -963,7 +1455,7 @@ class OIAnalysis:
         oi_df.set_index(keys='strike', inplace=True)
         
         return oi_df
-		
+        
     def get_oi_df(self, ticker, expiry_date, end_date):
 
         #############Input Parameters##############
@@ -1016,7 +1508,7 @@ class OIAnalysis:
 
             oi_df['calloi'][strike] = call_oi_value
             oi_df['putoi'][strike] = put_oi_value
-			
+            
         if self.debug:
             print("\n\nOpen Interest DF for strike {0} is here...".format(self.ticker))
             print(oi_df)
@@ -1177,7 +1669,7 @@ class PostgreSQLOperations:
 
             conn.close()
             return True
-			
+            
         except Exception as e:
             print('Encountered exception while inserting data into table {0}'.format(table_name))
             print('Exception # ', e)
