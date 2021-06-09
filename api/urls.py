@@ -4,6 +4,7 @@ from . import views
 from django.conf.urls import url
 
 urlpatterns = [
+   url( r'^$', views.Home, name ='home'),
    url( r'^openinterest/?$', views.Open_Interst_Chart_API_View.as_view(),name ='openinterest') ,
    url( r'^maxpainhistory/?$', views.MaxPain_History_Chart_API_View.as_view(),name ='maxpainhistory') ,
    url( r'^pcr/?$', views.PCR_Day_API_View.as_view(),name ='pcr') ,
@@ -23,5 +24,5 @@ urlpatterns = [
    url( r'^gainerslosersoi/?$', views.Gainers_Losers_OI.as_view(),name ='gainerslosersoi') ,
    url( r'^optionchain/?$', views.Option_Chain.as_view(),name ='optionchain') ,
    url( r'^cumulativeoi/?$', views.Get_Cumulative_OI.as_view(),name ='cumulativeoi') , 
-   url( r'^$', views.Home, name ='home'),
+   url( r'^cashfutarbitrage/?$', views.Cash_Futures_Arbitrage.as_view(),name ='cashfutarbitrage') ,
 ]
