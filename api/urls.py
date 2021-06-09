@@ -18,5 +18,6 @@ urlpatterns = [
    url( r'^strangleprices/?$', views.Get_Strangle_Prices.as_view(),name ='strangle') ,
    url( r'^gainerslosers/?$', views.Gainers_Losers.as_view(),name ='gainerslosers') ,
    url( r'^gainerslosersoi/?$', views.Gainers_Losers_OI.as_view(),name ='gainerslosersoi') ,
+   url( r'^cashfutarbitrage/?$', views.Cash_Futures_Arbitrage.as_view(),name ='cashfutarbitrage') ,
    url( r'$', views.Home, name ='home'),
 ]
