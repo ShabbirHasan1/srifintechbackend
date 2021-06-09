@@ -668,9 +668,17 @@ class Option_Chain(APIView):
             ],
             axis=1,
         )
-
-        underlying_details = kf.kite.quote(["NSE:" + i for i in ticker])[
-            ["NSE:" + i for i in ticker][0]
+        # breakpoint()
+        underlying_details = kf.kite.quote([
+            "NSE:NIFTY 50" if i== "NIFTY"
+            else "NSE:NIFTY BANK" if i=="BANKNIFTY"
+            else "NSE:" + i for i in ticker 
+            ])[
+            [
+            "NSE:NIFTY 50" if i== "NIFTY"
+            else "NSE:NIFTY BANK" if i=="BANKNIFTY"
+            else "NSE:" + i for i in ticker 
+            ][0]
         ]
 
         days = (expiry[0] - dt.date.today()).days
