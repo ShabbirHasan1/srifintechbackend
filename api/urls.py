@@ -19,6 +19,9 @@ urlpatterns = [
    url( r'^maxpain/?$', views.Get_Maxpain_Chart.as_view(),name ='maxpain') , 
    url( r'^straddleprices/?$', views.Get_Straddle_Prices.as_view(),name ='straddleprices') , 
    url( r'^strangleprices/?$', views.Get_Strangle_Prices.as_view(),name ='strangleprices') , 
+   url( r'^gainerslosers/?$', views.Gainers_Losers.as_view(),name ='gainerslosers') ,
+   url( r'^gainerslosersoi/?$', views.Gainers_Losers_OI.as_view(),name ='gainerslosersoi') ,
+   url( r'^optionchain/?$', views.Option_Chain.as_view(),name ='optionchain') ,
    url( r'^cumulativeoi/?$', views.Get_Cumulative_OI.as_view(),name ='cumulativeoi') , 
    url( r'^$', views.Home, name ='home'),
 ]

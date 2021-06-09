@@ -454,7 +454,7 @@ class KiteFunctions(KiteAuthentication):
         return self.fno_stock_list
 
     def get_last_traded_dates(self,ticker = 'NIFTY 50'):
-        # ticker = 'NIFTY 50' if ticker.upper() == 'NIFTY' else ticker
+        ticker = 'NIFTY 50' if ticker.upper() == 'NIFTY' else ticker
         today_date = dt.datetime.now().date()
         start_date = today_date - dt.timedelta(days=7)
         end_date = today_date
@@ -1230,7 +1230,7 @@ class OIAnalysis:
         maxpain_df_columns = ['strike', 'calloi', 'putoi']
         maxpain_df = pd.DataFrame(columns=maxpain_df_columns)
         maxpain_df.set_index(keys='strike', inplace=True)
-        
+        #SRiraj work in progress
         last_traded_date = self.kf.get_last_traded_dates()['last_traded_date']
         today_date = dt.datetime.now().date()
         
@@ -1720,8 +1720,8 @@ class PostgreSQLOperations:
         return result_df
 
        
-    def delete_rows_postgresql_table(self, table_name, where_condition = None,is_text=False):
-        global conn
+    def delete_rows_postgresql_table(self, table_name, where_condition = None):
+        conn = None
         if self.debug:
             print('Inside PostgreSQLOperations Class delete_df_postgresql_table method')
 
@@ -1735,7 +1735,7 @@ class PostgreSQLOperations:
         try:
             if self.debug:
                 print('Trying to upsert into table {0}'.format(table_name))
-            engine = sqlalchemy.create_engine(connection_string)
+            engine = sqlalchemy.create_engine(connection_string,poolclass=sqlalchemy.pool.NullPool)
             #    'postgresql://postgres:postgres@localhost/postgres'
 
             conn = engine.connect()
@@ -1749,10 +1749,7 @@ class PostgreSQLOperations:
             if where_condition is None:
                 del_stmt = table_name.delete()
             else:
-                if not is_text:
-                    del_stmt = table_name.delete().where(where_condition)
-                else:
-                    del_stmt = table_name.delete().where(text(where_condition))
+                del_stmt = table_name.delete().where(where_condition)
             # del_stmt = table_name.delete()
             if self.debug:
                 print('Now executing the Delete query # ', del_stmt)
