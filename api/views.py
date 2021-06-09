@@ -545,10 +545,10 @@ class Get_KiteAuth(APIView):
         logging.debug(pformat(user_profile))
         ######## converting object to json########
         user_profile_json_str = json.dumps(user_profile)
-        user_pofile_json = json.loads(user_profile_json_str)
+        user_profile_json = json.loads(user_profile_json_str)
         ######## converting object to json########
 
-        return Response(user_pofile_json)
+        return Response(user_profile_json)
 
 class Get_ltp_ticker(APIView):
     def post(self , request):
@@ -1482,6 +1482,56 @@ class Get_Strangle_Prices(APIView):
         return Response(ChartJSON_json)
     def get(self , request):
         return Response({"ticker" : "NIFTY","expiry_date" : "2021-5-27", "strikes_list" : [14400,14500,14600,14700],"intraday_ind" : 'true',"chart" : 'false'})
+
+
+class Get_Cumulative_OI(APIView):
+    def post(self , request):
+        logging.debug(pformat('\n\nBeginning of OpenInterest api with new quote logic...'))
+        ticker = request.data.get('ticker')
+        expiry_date_str = request.data.get('expiry_date')
+        date = request.data.get('date')
+        
+        print('\t\t\t' + ticker)
+        print('\t\t\t' + expiry_date_str)
+
+        logging.debug(pformat("Data in Post is # "))
+        logging.debug(pformat(request.data))
+
+        ##################Input parameters #####################
+        # ticker = content['ticker']
+        # expiry_date_str = content['expiry_date']
+        # intraday_ind = contenct['intraday_ind']
+        expiry_date = datetime.strptime(expiry_date_str, '%Y-%m-%d').date()
+
+        oi = OIAnalysis()
+
+        if date:
+            oi_df = oi.get_oi_df_anyday(ticker , expiry_date , date)
+        else:
+            oi_df = oi.get_oi_df_today(ticker , expiry_date )
+
+        call_oi  = oi_df['calloi'].sum() # this value if one bar
+        put_oi = oi_df['putoi'].sum()# and this for the other bar
+
+        ### here MyChart is the chart you will create n other else is same
+
+        NewChart = MyChart()
+        
+        ChartJSON= NewChart.get()   
+        ChartJSON_json = json.loads(ChartJSON)
+        
+        return Response(ChartJSON_json)
+    
+    def get(self , request):
+        return Response({"ticker":"NIFTY","expiry_date":"2021-05-27"})
+
+
+
+
+        
+
+
+
 
 
 

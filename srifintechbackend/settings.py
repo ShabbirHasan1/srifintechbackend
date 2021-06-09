@@ -28,12 +28,12 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", get_random_secret_key())
 # SECURITY WARNING: don't run with debug turned on in production!
                        
 #                            > make this value True in for local run
-DEBUG = os.getenv("DEBUG", "False") == "True"
+DEBUG = os.getenv("DEBUG", "True") == "True"
 
 ALLOWED_HOSTS = ["167.71.231.30", "127.0.0.1","localhost"]
 
 #                            > make this value True in for local run
-DEVELOPMENT_MODE = os.getenv("DEVELOPMENT_MODE", "False") == "True"
+DEVELOPMENT_MODE = os.getenv("DEVELOPMENT_MODE", "True") == "True"
 
 # Application definition
 
@@ -94,9 +94,22 @@ WSGI_APPLICATION = 'srifintechbackend.wsgi.application'
 # https://docs.djangoproject.com/en/3.0/ref/settings/#databases
 
 DATABASES = {
+    # 'default': {
+    #     'ENGINE': 'django.db.backends.sqlite3',
+    #     'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+    # }
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+        'ENGINE': 'django.db.backends.postgresql_psycopg2',
+
+        'NAME': 'defaultdb',
+
+        'USER': 'doadmin',
+
+        'PASSWORD': 'or5ka898vk8r1wdi',
+
+        'HOST': 'srifintech-db-do-user-8454140-0.b.db.ondigitalocean.com',
+
+        'PORT': '25060',
     }
 }
 
