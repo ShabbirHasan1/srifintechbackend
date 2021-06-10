@@ -1528,7 +1528,7 @@ class Get_Straddle_Prices(APIView):
         ####################### chartjs ########################
 
         return Response(ChartJSON_json)
-        
+
 class Get_Strangle_Prices(APIView):
     def post(self, request):
         logging.debug(pformat("Beginning of strangle api..."))
@@ -2197,17 +2197,37 @@ class Cash_Futures_Arbitrage(APIView):
         # ********************************* INPUT PARAMS *******************************************
         try:
             chart_js = request.data.get("chart_js", False)
+            expiry = request.data.get("expiry","current").upper()
         except Exception as e:
             return Response({"Error encountered while reading input request:\n": str(e)})
 
         # ********************************** INPUT PARAMS ******************************************
         kf = KiteFunctions()
         exclude_list = ["NIFTY","FINNIFTY","BANKNIFTY"]
-        stock_df = kf.master_instruments_df[(kf.master_instruments_df["segment"]=="NFO-FUT")
+
+        if expiry == "CURRENT":
+            stock_df = kf.master_instruments_df[(kf.master_instruments_df["segment"]=="NFO-FUT")
                                  & ~ (kf.master_instruments_df["name"].isin(exclude_list))
                                  & (kf.master_instruments_df["expiry"]==kf.master_instruments_df[
                                      (kf.master_instruments_df["segment"]=="NFO-FUT")
                                       & ~ (kf.master_instruments_df["name"].isin(exclude_list))]["expiry"].min())]
+        elif expiry == "NEAR":
+            stock_df = kf.master_instruments_df[(kf.master_instruments_df["segment"]=="NFO-FUT")
+                                 & ~ (kf.master_instruments_df["name"].isin(exclude_list))
+                                 & ~(kf.master_instruments_df["expiry"]==kf.master_instruments_df[
+                                     (kf.master_instruments_df["segment"]=="NFO-FUT")
+                                      & ~ (kf.master_instruments_df["name"].isin(exclude_list))]["expiry"].min())
+                                 & ~(kf.master_instruments_df["expiry"]==kf.master_instruments_df[
+                                     (kf.master_instruments_df["segment"]=="NFO-FUT")
+                                      & ~ (kf.master_instruments_df["name"].isin(exclude_list))]["expiry"].max())
+                                 & ~ (kf.master_instruments_df["instrument_token"]==2)]
+
+        elif expiry == "FAR":
+            stock_df = kf.master_instruments_df[(kf.master_instruments_df["segment"]=="NFO-FUT")
+                                 & ~ (kf.master_instruments_df["name"].isin(exclude_list))
+                                 & (kf.master_instruments_df["expiry"]==kf.master_instruments_df[
+                                     (kf.master_instruments_df["segment"]=="NFO-FUT")
+                                      & ~ (kf.master_instruments_df["name"].isin(exclude_list))]["expiry"].max())]
 
         stock_df = pd.concat([stock_df,stock_df.loc[:,"tradingsymbol"].apply(lambda x:"NFO:"+x)],axis=1)
 
