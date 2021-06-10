@@ -1199,7 +1199,6 @@ class Get_Maxpain_Chart(APIView):
     def get(self , request):
         return Response({"ticker":"NIFTY" ,"expiry_date":"2021-05-27"})
 
-
 class Option_Chain(APIView):
     def post(self, request):
         # ********************************* INPUT PARAMS *******************************************
@@ -1297,9 +1296,17 @@ class Option_Chain(APIView):
             ],
             axis=1,
         )
-
-        underlying_details = kf.kite.quote(["NSE:" + i for i in ticker])[
-            ["NSE:" + i for i in ticker][0]
+        # breakpoint()
+        underlying_details = kf.kite.quote([
+            "NSE:NIFTY 50" if i== "NIFTY"
+            else "NSE:NIFTY BANK" if i=="BANKNIFTY"
+            else "NSE:" + i for i in ticker 
+            ])[
+            [
+            "NSE:NIFTY 50" if i== "NIFTY"
+            else "NSE:NIFTY BANK" if i=="BANKNIFTY"
+            else "NSE:" + i for i in ticker 
+            ][0]
         ]
 
         days = (expiry[0] - dt.date.today()).days
@@ -1521,8 +1528,7 @@ class Get_Straddle_Prices(APIView):
         ####################### chartjs ########################
 
         return Response(ChartJSON_json)
-
-
+        
 class Get_Strangle_Prices(APIView):
     def post(self, request):
         logging.debug(pformat("Beginning of strangle api..."))
