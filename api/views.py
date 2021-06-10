@@ -2143,21 +2143,19 @@ class Gainers_Losers_OI(APIView):
 class Get_Cumulative_OI(APIView):
     def post(self , request):
         logging.debug(pformat('\n\nBeginning of OpenInterest api with new quote logic...'))
-        ticker = request.data.get('ticker')
-        expiry_date_str = request.data.get('expiry_date')
-        date = request.data.get('date')
-        
-        print('\t\t\t' + ticker)
-        print('\t\t\t' + expiry_date_str)
+
 
         logging.debug(pformat("Data in Post is # "))
         logging.debug(pformat(request.data))
 
         ##################Input parameters #####################
-        # ticker = content['ticker']
-        # expiry_date_str = content['expiry_date']
-        # intraday_ind = contenct['intraday_ind']
+        
+        ticker = request.data.get('ticker')
+        expiry_date_str = request.data.get('expiry_date')
+        date = request.data.get('date')
         expiry_date = datetime.strptime(expiry_date_str, '%Y-%m-%d').date()
+
+        ##################Input parameters #####################
 
         oi = OIAnalysis()
 
@@ -2166,23 +2164,26 @@ class Get_Cumulative_OI(APIView):
         else:
             oi_df = oi.get_oi_df_today(ticker , expiry_date )
 
-        call_oi  = oi_df['calloi'].sum() # this value if one bar
-        put_oi = oi_df['putoi'].sum()# and this for the other
+        ####################### chartjs ########################
 
-        ### here MyChart is the chart you will create n other else is same
-
-        NewChart = MyChart()
+        # breakpoint()
+        NewChart = coi_bargraph(
+            data1=[oi_df['calloi'].sum().item(),oi_df['putoi'].sum().item()],
+            yaxis_labels= [],
+            y_label="Open Interest",
+            top_label="Cumulative OI",
+            barcolor="BOTH",
+            len1=1,
+            len2=1,
+            bar_type="Vertical",
+            xaxis_labels=['Call OI','Put OI']
+        )()
         
-        ChartJSON= NewChart.get()   
-        ChartJSON_json = json.loads(ChartJSON)
-        
-        return Response(ChartJSON_json)
+        ####################### chartjs ########################
+        return Response(json.loads(NewChart.get()))
     
     def get(self , request):
         return Response({"ticker":"NIFTY","expiry_date":"2021-05-27"})
-
-
-
 
 class Cash_Futures_Arbitrage(APIView):
     def post(self,request):
