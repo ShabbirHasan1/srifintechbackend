@@ -7,16 +7,17 @@ import datetime as dt
 from datetime import datetime,date,timedelta
 from pychartjs import BaseChart, ChartType, Color, Options   
 from sqlalchemy import create_engine
-
-from api.classes import KiteAuthentication, KiteFunctions, MonteCarlo_Simulation, OIAnalysis, PostgreSQLOperations
-from api.chartjs_classes import *
+import math
 from api.implied_vol import implied_volatility
+
+from api.classes import KiteAuthentication, KiteFunctions, MonteCarlo_Simulation, OIAnalysis, PostgreSQLOperations , Charting
+from api.chartjs_classes import *
 import pandas as pd
+import plotly.io as pio
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
 import json
-import math
 from pytz import timezone
 from django.http import HttpResponse
 import numpy as np
@@ -546,10 +547,10 @@ class Get_KiteAuth(APIView):
         logging.debug(pformat(user_profile))
         ######## converting object to json########
         user_profile_json_str = json.dumps(user_profile)
-        user_pofile_json = json.loads(user_profile_json_str)
+        user_profile_json = json.loads(user_profile_json_str)
         ######## converting object to json########
 
-        return Response(user_pofile_json)
+        return Response(user_profile_json)
 
 class Get_ltp_ticker(APIView):
     def post(self , request):
@@ -565,13 +566,638 @@ class Get_ltp_ticker(APIView):
         try:
             kf = KiteFunctions()
         except Exception as e:
-            return Response({"Error encountered #:\n": str(e)})
+            return_text = 'Error encountered # ' + e
+            return Response(return_text)
         ltp = kf.get_ltp(ticker=ticker)
 
         return Response(str(ltp))
     
     def get(self , request):
         return Response({'ticker':'NIFTY'})
+
+class Get_Multistrike_OIchart(APIView):
+    def post(self , request):
+        logging.debug(pformat('Beginning of multistrikeoichartjs api...'))
+        content = request.data
+        logging.debug(pformat("Data in Post for /chartjson is # "))
+        logging.debug(pformat(content))
+        
+        ticker = request.data.get('ticker')
+        expiry_date_str = request.data.get('expiry_date')
+        strikes = request.data.get('strikes')
+        intraday_ind = request.data.get('intraday_ind')
+        
+
+        today_date = dt.datetime.now().date()
+        ticker = ticker.upper()
+        strike_list = strikes
+        expiry_date = datetime.strptime(expiry_date_str, '%Y-%m-%d').date()
+
+        logging.debug(pformat('Ticker # {0}\nExpiry {1}\nStrikes are # {2}\nIntradayIndicator # {3}'.format(ticker,expiry_date, strikes, intraday_ind)))
+
+        current_time = dt.datetime.now().astimezone(timezone('Asia/Kolkata')).strftime('%H:%M')
+        suptitle = 'Open Interest Analysis'
+        title = 'Open Interest for ' + ticker.upper() + ' @ ' + str(current_time)
+        xlabel = 'DateTime'
+        ylabel = 'OI Volume'
+        oi = OIAnalysis()
+
+        
+        if intraday_ind is True:
+            start_date = oi.kf.get_last_traded_dates()['last_traded_date']
+        else:
+            start_date = today_date - dt.timedelta(days=10)
+        
+        end_date = today_date
+
+        logging.debug(pformat('Ticker # {0}, Expiry {1} and Strikes are # {2}'.format(ticker,expiry_date, strike_list)))
+
+        oi_df = oi.get_multistrike_oi_df(ticker=ticker,
+                            strike_list=strike_list,
+                            start_date=start_date,
+                            end_date=end_date,
+                            expiry_date=expiry_date,
+                            intraday=intraday_ind)
+        
+        # print(oi_df)
+
+        if intraday_ind is True:
+            oi_df.index = oi_df.index.strftime("%H:%M")
+        else:
+            oi_df.index = oi_df.index.strftime("%b-%d")
+
+
+        ####################### chartjs ########################
+        color_palette = [
+                            Color.Red,
+                            Color.Blue,
+                            Color.Purple,
+                            Color.Maroon,
+                            Color.Magenta,
+                            Color.Teal,
+                            Color.Navy,
+                            Color.Orange,
+                            Color.Cyan,
+                            Color.Lime,
+                            Color.Olive,
+                            Color.Brown, ##
+                            Color.Pink,##
+                            Color.Lavender,##
+                            Color.Mint,# 
+                            Color.Apricot,#
+                            Color.Beige,#
+                            Color.Yellow,#
+                            Color.White
+
+        ]
+        color_count = len(strike_list)
+
+        def get_random_hexcolor():
+            return '#{:06x}'.format(randint(0, 256**3))
+
+
+        # LineData  
+        class NewLineData: 
+            def __init__(self, data, fill, label, yAxisID,borderColor=None): 
+                self.data           = data
+                self.fill           = fill
+                self.label          = label
+                self.yAxisID        = yAxisID
+                #Border properties
+                self.borderColor    = borderColor
+                self.borderWidth    = 2
+                self.lineTension    = 0
+                #Point Properties
+                # self.pointStyle = 'triangle'
+                self.pointRadius    = 1
+
+        class LineGraph(BaseChart):
+
+            type = ChartType.Line
+            
+            class labels:
+                xaxis_labels = list()
+
+            class data:
+                class linedata:
+                    label           = ticker
+                    data            = []
+                    #Border properties
+                    borderColor     = Color.Black
+                    borderColor     = Color.Hex("#7A9B0E")
+                    borderWidth     = 3
+                    # backgroundColor = Color.Green
+                    fill            = False
+                    yAxisID         = 'y1'
+                    lineTension     = 0
+                    pointStyle = 'triangle'
+                    borderDash      = [3, 1] # ProvidesDashed line.  
+                    #Point Properties
+                    pointRadius     = 1
+                    # pointRotation   = 180
+                    # pointHoverRadius= 7
+
+            class options:
+                responsive = True
+
+                tooltips = {
+                                "intersect"         : False,
+                                # "backgroundColor" : Color.Red
+                                # "mode"              : "nearest",
+                                # # "mode"              : "index",
+                                # "axis"              : "x",
+                                # "position"          : "nearest",
+                                # "displayColors"     : True
+                                # # "cornerRadius"      : 3
+                }
+                
+                # title = Options.Title(text="MULTI STRIKE OI CHART", fontsize=18)
+                # showLines = False # This will not draw lines between points
+                # title = {   
+                #             "display"           : True,
+                #             "text"              : "sample title",
+                #             "fontSize"          : 20,
+                #             "fontColor"         : Color.Green
+                # }
+
+                # legend = Options.Legend(position="bottom")
+                legend = {
+                                'position'      : 'top', 
+                                'labels'        : {
+                                'fontColor'     : Color.Black, 
+                                "boxWidth"      : 35,
+                                # 'fullWidth'   : True,
+                                "fontSize"      : 10,
+                                "fontStyle"     : "bold"
+                                # "padding"     : 50,
+                                # "usePointStyle" : True
+                            }
+                }
+                
+                layout = {
+                            "padding"   :  {
+                                            "left"    : 0,
+                                            "right"   : 0,
+                                            "top"     : 0,
+                                            "bottom"  : 20
+                        }
+                }
+
+
+                scales = {
+
+                    "xAxes": [
+                            {   
+                            
+                            "display"        : True,
+                            #    "type"           : "time",
+                            #    "time"           : {
+                            #         "parser"         : "HH:mm",
+                            #         # "unit"    : "minute"
+                            #         "unit"      : "hour"
+                            #         # "unitStepSize" : 60
+
+                            #    },
+                                # "labelString"    : "DateTime" ,
+                                "gridLines"     : {
+                                    "display"      : False,
+                                    "drawBorder"   : True
+                                }, 
+                        }
+                    ],
+                    "yAxes": [
+                            {
+                                "scaleLabel": {
+                                                "display"       : True,
+                                                "labelString"   : ticker,
+                                                "fontColor"     : Color.Black
+                                }, 
+                                "id"            : "y1",
+                                "position"      : "right",
+                                "display"       : True,
+                                "gridLines"     : {
+                                                    "display"     : False
+                                                # "drawBorder"    : True
+                            }
+                        },
+                        {
+                            "scaleLabel": {
+                                                "display"       : True,
+                                                "labelString"   : "Open Interest",
+                                                "fontColor"     : Color.Black
+                            }, 
+                            "id"            : "y2",
+                            "position"      : "left",
+                            "gridLines"     : {
+                                            "display"       : True
+                                            # "drawBorder"   : True
+                            }
+                        }
+                    ]
+                }
+                # animation = {
+                #     "duration"        : 1000
+                #     "easing"          : "easeOutCirc"
+
+                # }
+
+            # class pluginOptions:
+            #     zoom = {
+            #         "pan": {
+            #                       "enabled": True,
+            #                       "mode": "x",
+            #                       "speed": 10,
+            #                       "threshold": 10
+            #         },
+            #         "zoom" : {
+            #             "enabled" : True,
+            #             "mode": "y"
+            #         }
+            #     }
+                        
+        NewChart = LineGraph()
+        NewChart.labels.xaxis_labels = oi_df.index.to_list()
+        NewChart.data.linedata.data = oi_df[ticker].to_list()
+        ChartJSON_json = json.loads(NewChart.get())
+
+        i = 0
+        for strike_item in strike_list:
+            ###Adding New Line
+            newline = NewLineData(  data=oi_df[strike_item].to_list(), 
+                                    fill=False, 
+                                    label=strike_item, 
+                                    yAxisID="y2", 
+                                    # borderColor=Color.Hex(get_random_hexcolor())
+                                    borderColor=color_palette[i % color_count]
+            )
+            newline_json = json.loads(json.dumps(newline.__dict__))
+            ChartJSON_json['data']['datasets'].append(newline_json)
+            i += 1
+        # # ###Add New LIne
+        # newline = NewLineData(data=oi_df[strike_list[1]].to_list(), fill=False, label=strike_list[1], yAxisID="y2", borderColor=Color.Hex(get_random_hexcolor()))
+        # newline_json = json.loads(json.dumps(newline.__dict__))
+        # ChartJSON_json['data']['datasets'].append(newline_json)
+        
+        
+        # ChartJSON_str = json.dumps(ChartJSON_json) 
+
+        ####################### chartjs ########################
+
+        return Response(ChartJSON_json)
+    
+    def get(self , request):
+        return Response({"ticker" : "NIFTY","expiry_date" : "2021-5-27","strikes" : ["15000PE", "15300CE"],"intraday_ind":'true'})
+
+class Get_Multistrike_OIchange(APIView):
+    def post(self , request):
+        content = request.data
+        ticker = request.data.get('ticker')
+        expiry_date_str = request.data.get('expiry_date')
+        expiry_date = datetime.strptime(expiry_date_str, '%Y-%m-%d').date()
+        strikes = request.data.get('strikes')
+        chart = request.data.get('chart')
+        intraday_ind = True
+
+        logging.debug(pformat('Ticker # {0}\nExpiry {1}\nStrikes are # {2}\nIntradayIndicator # {3}'.format(ticker,expiry_date, strikes, intraday_ind)))
+
+        current_time = dt.datetime.now().astimezone(timezone('Asia/Kolkata')).strftime('%H:%M')
+        suptitle = 'Open Interest Analysis'
+        title = 'Open Interest for ' + ticker.upper() + ' @ ' + str(current_time)
+        xlabel = 'DateTime'
+        ylabel = 'OI Volume'
+        oi = OIAnalysis()
+
+        today_date = dt.datetime.now().date()
+        ticker = ticker.upper()
+        strike_list = strikes
+
+        if intraday_ind is True:
+            """
+            Get Last traded day in NSE by fetching NIFTY prices for last one week.  
+            Then the last traded date in nifty_df will be the latest traded day.
+            This activity is required only for the Intraday chart
+            """
+            
+
+            start_date = oi.kf.get_last_traded_dates()['last_traded_date']
+        else:
+            start_date = today_date - dt.timedelta(days=10),
+
+        end_date = today_date
+
+        logging.debug(pformat('Ticker # {0}, Expiry {1} and Strikes are # {2}'.format(ticker,expiry_date, strike_list)))
+
+        oi_df = oi.get_multistrike_oichange_df(ticker=ticker,
+                            strike_list=strike_list,
+                            start_date=start_date,
+                            end_date=end_date,
+                            expiry_date=expiry_date,
+                            intraday=intraday_ind)
+
+        if oi_df.empty:
+            return_text = 'Data not fetched for ticker # ' + ticker + ' for expiry date # ' + str(expiry_date)
+            return Response(return_text)
+        else:
+            if chart:
+                ch = Charting()
+                current_time = dt.datetime.now().astimezone(timezone('Asia/Kolkata')).strftime('%H:%M')
+                title = 'OI Change for  ' + ticker + ' @ '+ str(current_time)
+
+                fig = ch.plotly_goscatter_chart_with_secondary(df=oi_df,
+                                                            title=title,
+                                                            xlabel='DateTime',
+                                                            ylabel='OI Volume',
+                                                            secondary_plot=ticker
+                                                            )
+                logging.debug(pformat('Rendering OI Chart...'))
+                return pio.to_html(fig=fig,full_html=True)
+            else:
+                return Response(oi_df.to_json(orient="index"), mimetype='application/json')    
+    def get(self , request):
+        return Response({"ticker":"NIFTY","expiry_date":"2021-05-27" , "strikes":"12800PE" , "chart":"temp"})
+
+class Get_OIchange_Chart(APIView):
+    def post(self , request):
+        logging.debug(pformat('\n\nBeginning of OI Change api with new quote logic...'))
+
+        content = request.data
+        logging.debug(pformat("Data in Post is # "))
+        logging.debug(pformat(content))
+
+        ##################Input parameters #####################
+        ticker = request.data.get('ticker')
+        expiry_date_str = request.data.get('expiry_date')
+        # from_date_str = content['from_date']
+        # to_date_str = content['to_date']
+            
+        expiry_date = datetime.strptime(expiry_date_str, '%Y-%m-%d').date()
+        
+        # from_date   = datetime.strptime(from_date_str, '%Y-%m-%d').date()
+        # to_date     = datetime.strptime(to_date_str, '%Y-%m-%d').date()
+        
+    
+        ##################Input parameters ######################
+        
+        
+        table_name = 'index_option_history_day'
+        db_location = 'srifintech-database'
+        oi = OIAnalysis()
+        
+        to_date = oi.kf.get_last_traded_dates()['last_traded_date']
+        from_date = oi.kf.get_last_traded_dates()['last_traded_date-1']
+        display_strikes_count = 15
+        
+        oi_df1 = oi.get_oi_df_anyday(ticker=ticker, expiry_date=expiry_date, date=from_date)
+        
+        oi_df1.rename(columns = {'calloi': 'calloi1', 
+                                'putoi' : 'putoi1'}, inplace = True)
+
+        logging.debug(pformat("HERE IS THE FIRST OI DATA"))
+        logging.debug(pformat(oi_df1))
+        today_date = dt.datetime.now().date()
+        if to_date == today_date:
+            oi_df2 = oi.get_oi_df_today(ticker=ticker, expiry_date=expiry_date)
+            oi_df2.rename(columns = {'calloi': 'calloi2', 
+                                    'putoi' : 'putoi2'}, inplace = True)
+        else:
+        
+            oi_df2 = oi.get_oi_df_anyday(ticker=ticker, expiry_date=expiry_date, date=to_date)
+            oi_df2.rename(columns = {'calloi': 'calloi2', 
+                                    'putoi' : 'putoi2'}, inplace = True)
+
+        logging.debug(pformat("HERE IS THE SECOND OI DATA"))
+        logging.debug(pformat(oi_df2))
+
+        oi_change_df = pd.merge(oi_df1, oi_df2, on = "strike", how = "inner")
+
+        oi_change_df['callchange'] = oi_change_df['calloi2'] - oi_change_df['calloi1']
+        oi_change_df['putchange'] = oi_change_df['putoi2'] - oi_change_df['putoi1']
+        
+        logging.debug(pformat(oi_change_df))
+        #########################################
+        ltp = oi.kf.get_ltp(ticker=ticker)
+        annotation_label = "Spot Price: " + str(ltp)
+        strike_list = oi_change_df.index.to_list()
+        absolute_difference_function = lambda list_value : abs(list_value - ltp)
+        closest_strike = min(strike_list, key=absolute_difference_function)
+        logging.debug(pformat("Closest Strike is # ", closest_strike))
+        row_num = oi_change_df.index.get_loc(closest_strike)
+        logging.debug(pformat("Row Num of closest strike # ", row_num))
+        oi_df = oi_change_df.iloc[row_num - display_strikes_count :  row_num + display_strikes_count]
+        
+        # logging.debug(pformat(oi_df))
+
+        ####################### chartjs ########################
+
+        NewChart = oichange_bargraph(closest_strike=closest_strike,
+            annotation_label=annotation_label)()
+        
+        NewChart.labels.xaxis_labels    = oi_df.index.to_list()
+        NewChart.data.bardata1.data     = oi_df["callchange"].to_list()
+        NewChart.data.bardata2.data     = oi_df["putchange"].to_list()
+        
+        ChartJSON_json = json.loads(NewChart.get())
+
+        # ChartJSON_str = NewChart.get()
+
+
+        # logging.debug(pformat("\n\nHere is the chartjson..."))
+        # logging.debug(pformat(ChartJSON_str))
+
+        ####################### chartjs ########################
+
+        return Response(ChartJSON_json)
+    
+    def get(self , request):
+        return Response({"ticker":"NIFTY" ,"expiry_date":"2021-05-27"})
+
+class Get_Maxpain_Chart(APIView):
+    def post(self , request):
+        logging.debug(pformat('\n\nBeginning of Maxpain api...'))
+
+        content = request.data
+        logging.debug(pformat("Data in Post is # "))
+        logging.debug(pformat(content))
+
+        ##################Input parameters #####################
+        ticker = request.data.get('ticker')
+        expiry_date_str = request.data.get('expiry_date')
+        
+        # intraday_ind = contenct['intraday_ind']
+        expiry_date = datetime.strptime(expiry_date_str, '%Y-%m-%d').date()
+        
+        # ticker = 'NIFTY'
+        # expiry_date = dt.date(2020,12,31)
+        
+        logging.debug(pformat("\nCalculating maxpain for Ticker # {0}\nfor expiry # {1}".format(ticker, expiry_date)))
+        ##################Input parameters #####################
+        oi = OIAnalysis()
+        maxpain_df = oi.get_maxpain( ticker=ticker,
+                                expiry_date=expiry_date)
+
+        maxpain_value = int(maxpain_df[['total_value']].idxmin().iloc[-1])
+
+        logging.debug(pformat('\n\nHere is the Final Maxpain Dataframe...'))
+        logging.debug(pformat(maxpain_df))
+        logging.debug(pformat("\nMax pain value: ", maxpain_value))
+        
+        title_text = "Max Pain Value # " + str(maxpain_value)
+        annotation_label = "MaxPain: " + str(maxpain_value)
+        strike_list = maxpain_df.index.to_list()
+        # absolute_difference_function = lambda list_value : abs(list_value - ltp)
+        # closest_strike = min(strike_list, key=absolute_difference_function)
+        # logging.debug(pformat("Closest Strike is # ", closest_strike))
+
+        ####################### BarGraph chartjs ########################
+        class NewBarData: 
+            def __init__(self, data, fill, borderWidth=None,backgroundColor=None, borderColor=None): 
+                self.data            = data
+                #Border properties
+                self.borderColor     = borderColor
+                self.borderWidth     = borderWidth
+                self.backgroundColor = backgroundColor
+                self.fill            = fill
+
+
+        class BarGraph(BaseChart):
+
+            type = ChartType.Bar
+            
+            class labels:
+                xaxis_labels = list()
+
+            class data:
+                class bardata1:     #This is for Plotting Cumulative Call Value
+                        label           = "Cumulative Call"
+                        data            = []
+                        #Border properties
+                        borderColor     = Color.Black
+                        borderWidth     = 1
+                        backgroundColor = Color.Red
+                        fill            = True
+
+                class bardata2:     #This is for Plotting Cumulative Put Value
+                        label           = "Cumulative Put"
+                        data            = []
+                        #Border properties
+                        borderColor     = Color.Black
+                        borderWidth     = 1
+                        backgroundColor = Color.Green
+                        fill            = True
+
+            class options:
+                responsive = True
+                annotation = {
+                        "annotations": [
+                        {
+                            "drawTime": "beforeDatasetsDraw",
+                            "id": "vline",
+                            "type": "line",
+                            "mode": "vertical",
+                            "scaleID": "x-axis-0",  
+                            "value": maxpain_value,
+                            "borderColor": Color.Black,
+                            "borderWidth": 5,
+                            "label": {
+                                "backgroundColor": Color.Hex("#7A9B0E"),
+                                "content": annotation_label,
+                                "enabled": True,
+                                "position" : "top"
+                            }
+                        },          
+                        ]
+                }
+                tooltips = {
+                                "intersect"         : False,
+                                # "mode"              : "nearest",
+                                "mode"              : "index",
+                                "axis"              : "x",
+                                "position"          : "nearest",
+                                "displayColors"     : True
+                                # "cornerRadius"      : 3
+                }
+                
+                # title = Options.Title(text=title_text, fontsize=30, fontcolor=Color.Black, fontstyle="bold")
+        #         # showLines = False # This will not draw lines between points
+                title = {   
+                            "display"           : True,
+                            "text"              : title_text,
+                            "fontSize"          : 20,
+                            "fontColor"         : Color.Black,
+                            "fontStyle"         : "bold"
+                }
+
+        #         # legend = Options.Legend(position="bottom")
+                legend = {      
+                                'display'       : False,
+                                'position'      : 'top', 
+                                'labels'        : {
+                                'fontColor'     : Color.Black, 
+                                "boxWidth"      : 35,
+                                # 'fullWidth'   : True,
+                                "fontSize"      : 16,
+                                "fontStyle"     : "bold"
+                                # "padding"     : 50,
+                                # "usePointStyle" : True
+                            }
+                }
+                
+
+
+                scales = {
+
+                    "xAxes": [
+                            {   
+                            
+                            "display"        : True,
+                            "labelString"    : "Strike Prices" ,
+                                "gridLines"     : {
+                                    "display"      : False,
+                                    "drawBorder"   : True
+                                }, 
+                        }
+                    ],
+                    "yAxes": [
+                            {
+                                "scaleLabel": {
+                                                "display"       : False,
+                                                "labelString"   : "Open Interest",
+                                                "fontColor"     : Color.Black,
+                                                "fontSize"      : 16
+                                    }, 
+                                "id"            : "y1",
+                                "position"      : "left",
+                                "display"       : True,
+                                "gridLines"     : {
+                                                    "display"     : True
+                                                # "drawBorder"    : True
+                            }
+                        }
+                    
+                    ]
+                }
+    
+        ####################### BarGraph chartjs ########################
+
+
+        NewChart = BarGraph()
+        
+        NewChart.labels.xaxis_labels    = maxpain_df.index.to_list()
+        NewChart.data.bardata1.data     = maxpain_df["cum_call"].to_list()
+        NewChart.data.bardata2.data     = maxpain_df["cum_put"].to_list()
+
+        # ChartJSON_str = NewChart.get()
+
+        ChartJSON_json = json.loads(NewChart.get())
+
+
+        # logging.debug(pformat("\n\nHere is the chartjson..."))
+        # logging.debug(pformat(ChartJSON_str))
+        ####################### chartjs ########################
+
+        return Response(ChartJSON_json)
+    def get(self , request):
+        return Response({"ticker":"NIFTY" ,"expiry_date":"2021-05-27"})
 
 class Option_Chain(APIView):
     def post(self, request):
@@ -590,7 +1216,11 @@ class Option_Chain(APIView):
 
         # ********************************** INPUT PARAMS ******************************************
 
-        kf = KiteFunctions()
+        try:
+            kf = KiteFunctions()
+        except Exception as e:
+            return_text = 'Error encountered # ' + e
+            return Response(return_text)
         interval = 450
 
         df1 = kf.master_instruments_df[
@@ -632,7 +1262,7 @@ class Option_Chain(APIView):
                     ]
                 )
             except Exception as e:
-                return "Error encountered while getting quote():\n" + str(e)
+                return Response("Error encountered while getting quote():\n" + str(e))
 
             if i > len(df1.index):
                 break
@@ -666,9 +1296,17 @@ class Option_Chain(APIView):
             ],
             axis=1,
         )
-
-        underlying_details = kf.kite.quote(["NSE:" + i for i in ticker])[
-            ["NSE:" + i for i in ticker][0]
+        # breakpoint()
+        underlying_details = kf.kite.quote([
+            "NSE:NIFTY 50" if i== "NIFTY"
+            else "NSE:NIFTY BANK" if i=="BANKNIFTY"
+            else "NSE:" + i for i in ticker 
+            ])[
+            [
+            "NSE:NIFTY 50" if i== "NIFTY"
+            else "NSE:NIFTY BANK" if i=="BANKNIFTY"
+            else "NSE:" + i for i in ticker 
+            ][0]
         ]
 
         days = (expiry[0] - dt.date.today()).days
@@ -750,7 +1388,11 @@ class Get_Straddle_Prices(APIView):
         intraday_ind = content.get("intraday_ind", True)
         ####################### Input parameters #####################
 
-        kf = KiteFunctions()
+        try:
+            kf = KiteFunctions()
+        except Exception as e:
+            return_text = 'Error encountered # ' + e
+            return Response(return_text)
         days = 10
         today_date = dt.datetime.now().date()
         if intraday_ind:
@@ -920,7 +1562,11 @@ class Get_Strangle_Prices(APIView):
         ####################### Input parameters #####################
 
         days = 10
-        kf = KiteFunctions()
+        try:
+            kf = KiteFunctions()
+        except Exception as e:
+            return_text = 'Error encountered # ' + e
+            return Response(return_text)
 
         # Interval = 5 mins if intraday set to True else Interval = 10 days
         start_date, interval = (
@@ -1070,6 +1716,60 @@ class Get_Strangle_Prices(APIView):
 
 class Gainers_Losers(APIView):
     def post(self, request):
+        '''
+        The gainers losers API returns the Top
+        Gainers and Top Losers. 
+        The expiry date is required only when
+        Fetching the Gainers and Losers for Futures.
+
+        :param number: Positive Integer for the number of records. 
+                        0(Zero) returns all
+
+        :param gainers_or_losers: String value. Allowed values are
+        "Gainers","Losers" or "Both"
+
+        :param type: String value. Allowed values are
+        "Stocks", "Indices" or "Futures"
+
+        :param ret_df: Boolean value. Default is False. 
+        False -> Chart Js json response
+        True -> DataFrame json response
+
+        :param expiry_date: String date. Optional parameter.
+        Required when :param type: set to "Futures"
+
+        Example requests:
+
+        1.
+        {
+        "number":5,
+        "gainers_or_losers":"both",
+        "type":"futures",
+        "expiry_date":"2021-07-29"
+        }
+
+        Returns top 5 gainers and losers for futures for the expiry
+        "2021-07-29"
+
+        2.
+        {
+        "number":0,
+        "gainers_or_losers":"losers",
+        "type":"futures",
+        "expiry_date":"2021-07-29"
+        }
+        Returns top all losers for futures for the expiry
+        "2021-07-29"
+
+        3.
+        {
+        "number":10,
+        "gainers_or_losers":"losers",
+        "type":"indices",
+        }
+        
+        Returns 10 gainers of nifty indices
+        '''
         # ********************************* INPUT PARAMS *******************************************
         
         try:
@@ -1093,7 +1793,11 @@ class Gainers_Losers(APIView):
 
 
         # Initialising KiteFuntions object
-        kf = KiteFunctions()
+        try:
+            kf = KiteFunctions()
+        except Exception as e:
+            return_text = 'Error encountered # ' + e
+            return Response(return_text)
         stock_df = None
         if gnlr_type in ["STOCK", "STOCKS"]:
             gnlr_type = "STOCKS"
@@ -1153,13 +1857,10 @@ class Gainers_Losers(APIView):
         ####################### chartjs ########################
 
         '''
-
         Gainers Losers ChartJS class is returned by gl_bargraph() function. 
         This function takes the following parameters:
-
         :param data1: list of bargraph data,
         Here it would be the list of percentages of the top gainers/losers
-
         :param yaxis_labels: List of labels for the corresponding bars.
         :param y_label: String label for Y-axis.
         :param top_label: String label for the top of the chart.
@@ -1168,12 +1869,10 @@ class Gainers_Losers(APIView):
         :param position: String position for the bars alignment. 
         Takes 'left' or 'right'. Default is 'left'. Works in opposing fashion 
         for bars with negative values (Losers).
-
         :param len1: Integer representing the length of 1st bardata. 
         Required for the case of "BOTH", otherwise is optional.
         :param len2: Integer representing the length of 1st bardata. 
         Required for the case of "BOTH", otherwise is optional.
-
         '''
 
         if gainers_or_losers == "GAINERS":
@@ -1243,6 +1942,55 @@ class Gainers_Losers(APIView):
         return Response(json.loads(NewChart.get()))
 
 class Gainers_Losers_OI(APIView):
+    '''
+        The gainers losers oi API returns the Top OI
+        Gainers and Top OI Losers. 
+        The expiry date is required only when
+        Fetching the Gainers and Losers for Futures.
+
+        :param number: Positive Integer for the number of records. 
+                        0(Zero) returns all records.
+
+        :param gainers_or_losers: String value. Allowed values are
+        "Gainers","Losers" or "Both"
+
+        :param ret_df: Boolean value. Default is False. 
+        False -> Chart Js json response
+        True -> DataFrame json response
+
+        :param expiry_date: String date. 
+
+        Example requests:
+
+        1.
+        {
+        "number":5,
+        "gainers_or_losers":"both",
+        "expiry_date":"2021-07-29"
+        }
+
+        Returns top 5 gainersoi and losersoi for futures for the expiry
+        "2021-07-29" in chartjs
+
+        2.
+        {
+        "number":0,
+        "gainers_or_losers":"losers",
+        "expiry_date":"2021-07-29"
+        }
+        Returns top all losers for futures for the expiry
+        "2021-07-29" in chartjs
+
+        2.
+        {
+        "number":0,
+        "gainers_or_losers":"losers",
+        "expiry_date":"2021-07-29",
+        "ret_df":true
+        }
+        Returns top all losers for futures for the expiry
+        "2021-07-29" in dataframe json response
+        '''
     def post(self, request):
         # ********************************* INPUT PARAMS *******************************************
         try:
@@ -1258,7 +2006,11 @@ class Gainers_Losers_OI(APIView):
         # ********************************** INPUT PARAMS ******************************************
 
         # Initialising KiteFuntions object
-        kf = KiteFunctions()
+        try:
+            kf = KiteFunctions()
+        except Exception as e:
+            return_text = 'Error encountered # ' + e
+            return Response(return_text)
 
         # Filtering the instruments df to get FUTURES instruments
         stock_df = kf.master_instruments_df[
@@ -1417,13 +2169,10 @@ class Gainers_Losers_OI(APIView):
         ####################### chartjs ########################
 
         '''
-
         Gainers Losers ChartJS class is returned by gl_bargraph() function. 
         This function takes the following parameters:
-
         :param data1: list of bargraph data,
         Here it would be the list of percentages of the top gainers/losers
-
         :param yaxis_labels: List of labels for the corresponding bars.
         :param y_label: String label for Y-axis.
         :param top_label: String label for the top of the chart.
@@ -1432,12 +2181,10 @@ class Gainers_Losers_OI(APIView):
         :param position: String position for the bars alignment. 
         Takes 'left' or 'right'. Default is 'left'. Works in opposing fashion 
         for bars with negative values (Losers).
-
         :param len1: Integer representing the length of 1st bardata. 
         Required for the case of "BOTH", otherwise is optional.
         :param len2: Integer representing the length of 1st bardata. 
         Required for the case of "BOTH", otherwise is optional.
-
         '''
 
         if gainers_or_losers == "GAINERS":
@@ -1501,24 +2248,89 @@ class Gainers_Losers_OI(APIView):
 
         ####################### chartjs ########################
         return Response(json.loads(NewChart.get()))
+
+class Get_Cumulative_OI(APIView):
+    def post(self , request):
+        logging.debug(pformat('\n\nBeginning of OpenInterest api with new quote logic...'))
+
+
+        logging.debug(pformat("Data in Post is # "))
+        logging.debug(pformat(request.data))
+
+        ##################Input parameters #####################
         
+        ticker = request.data.get('ticker')
+        expiry_date_str = request.data.get('expiry_date')
+        date = request.data.get('date')
+        expiry_date = datetime.strptime(expiry_date_str, '%Y-%m-%d').date()
+
+        ##################Input parameters #####################
+
+        oi = OIAnalysis()
+
+        if date:
+            oi_df = oi.get_oi_df_anyday(ticker , expiry_date , date)
+        else:
+            oi_df = oi.get_oi_df_today(ticker , expiry_date )
+
+        ####################### chartjs ########################
+
+        # breakpoint()
+        NewChart = coi_bargraph(
+            data1=[oi_df['calloi'].sum().item(),oi_df['putoi'].sum().item()],
+            yaxis_labels= [],
+            y_label="Open Interest",
+            top_label="Cumulative OI",
+            barcolor="BOTH",
+            len1=1,
+            len2=1,
+            bar_type="Vertical",
+            xaxis_labels=['Call OI','Put OI']
+        )()
+        
+        ####################### chartjs ########################
+        return Response(json.loads(NewChart.get()))
+    
+    def get(self , request):
+        return Response({"ticker":"NIFTY","expiry_date":"2021-05-27"})
+
 class Cash_Futures_Arbitrage(APIView):
     def post(self,request):
 
         # ********************************* INPUT PARAMS *******************************************
         try:
             chart_js = request.data.get("chart_js", False)
+            expiry = request.data.get("expiry","current").upper()
         except Exception as e:
             return Response({"Error encountered while reading input request:\n": str(e)})
 
         # ********************************** INPUT PARAMS ******************************************
         kf = KiteFunctions()
         exclude_list = ["NIFTY","FINNIFTY","BANKNIFTY"]
-        stock_df = kf.master_instruments_df[(kf.master_instruments_df["segment"]=="NFO-FUT")
+
+        if expiry == "CURRENT":
+            stock_df = kf.master_instruments_df[(kf.master_instruments_df["segment"]=="NFO-FUT")
                                  & ~ (kf.master_instruments_df["name"].isin(exclude_list))
                                  & (kf.master_instruments_df["expiry"]==kf.master_instruments_df[
                                      (kf.master_instruments_df["segment"]=="NFO-FUT")
                                       & ~ (kf.master_instruments_df["name"].isin(exclude_list))]["expiry"].min())]
+        elif expiry == "NEAR":
+            stock_df = kf.master_instruments_df[(kf.master_instruments_df["segment"]=="NFO-FUT")
+                                 & ~ (kf.master_instruments_df["name"].isin(exclude_list))
+                                 & ~(kf.master_instruments_df["expiry"]==kf.master_instruments_df[
+                                     (kf.master_instruments_df["segment"]=="NFO-FUT")
+                                      & ~ (kf.master_instruments_df["name"].isin(exclude_list))]["expiry"].min())
+                                 & ~(kf.master_instruments_df["expiry"]==kf.master_instruments_df[
+                                     (kf.master_instruments_df["segment"]=="NFO-FUT")
+                                      & ~ (kf.master_instruments_df["name"].isin(exclude_list))]["expiry"].max())
+                                 & ~ (kf.master_instruments_df["exchange_token"]==0)]
+
+        elif expiry == "FAR":
+            stock_df = kf.master_instruments_df[(kf.master_instruments_df["segment"]=="NFO-FUT")
+                                 & ~ (kf.master_instruments_df["name"].isin(exclude_list))
+                                 & (kf.master_instruments_df["expiry"]==kf.master_instruments_df[
+                                     (kf.master_instruments_df["segment"]=="NFO-FUT")
+                                      & ~ (kf.master_instruments_df["name"].isin(exclude_list))]["expiry"].max())]
 
         stock_df = pd.concat([stock_df,stock_df.loc[:,"tradingsymbol"].apply(lambda x:"NFO:"+x)],axis=1)
 
