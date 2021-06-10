@@ -2323,7 +2323,7 @@ class Cash_Futures_Arbitrage(APIView):
                                  & ~(kf.master_instruments_df["expiry"]==kf.master_instruments_df[
                                      (kf.master_instruments_df["segment"]=="NFO-FUT")
                                       & ~ (kf.master_instruments_df["name"].isin(exclude_list))]["expiry"].max())
-                                 & ~ (kf.master_instruments_df["instrument_token"]==2)]
+                                 & ~ (kf.master_instruments_df["exchange_token"]==0)]
 
         elif expiry == "FAR":
             stock_df = kf.master_instruments_df[(kf.master_instruments_df["segment"]=="NFO-FUT")
