@@ -1716,6 +1716,60 @@ class Get_Strangle_Prices(APIView):
 
 class Gainers_Losers(APIView):
     def post(self, request):
+        '''
+        The gainers losers API returns the Top
+        Gainers and Top Losers. 
+        The expiry date is required only when
+        Fetching the Gainers and Losers for Futures.
+
+        :param number: Positive Integer for the number of records. 
+                        0(Zero) returns all
+
+        :param gainers_or_losers: String value. Allowed values are
+        "Gainers","Losers" or "Both"
+
+        :param type: String value. Allowed values are
+        "Stocks", "Indices" or "Futures"
+
+        :param ret_df: Boolean value. Default is False. 
+        False -> Chart Js json response
+        True -> DataFrame json response
+
+        :param expiry_date: String date. Optional parameter.
+        Required when :param type: set to "Futures"
+
+        Example requests:
+
+        1.
+        {
+        "number":5,
+        "gainers_or_losers":"both",
+        "type":"futures",
+        "expiry_date":"2021-07-29"
+        }
+
+        Returns top 5 gainers and losers for futures for the expiry
+        "2021-07-29"
+
+        2.
+        {
+        "number":0,
+        "gainers_or_losers":"losers",
+        "type":"futures",
+        "expiry_date":"2021-07-29"
+        }
+        Returns top all losers for futures for the expiry
+        "2021-07-29"
+
+        3.
+        {
+        "number":10,
+        "gainers_or_losers":"losers",
+        "type":"indices",
+        }
+        
+        Returns 10 gainers of nifty indices
+        '''
         # ********************************* INPUT PARAMS *******************************************
         
         try:
@@ -1888,6 +1942,55 @@ class Gainers_Losers(APIView):
         return Response(json.loads(NewChart.get()))
 
 class Gainers_Losers_OI(APIView):
+    '''
+        The gainers losers oi API returns the Top OI
+        Gainers and Top OI Losers. 
+        The expiry date is required only when
+        Fetching the Gainers and Losers for Futures.
+
+        :param number: Positive Integer for the number of records. 
+                        0(Zero) returns all records.
+
+        :param gainers_or_losers: String value. Allowed values are
+        "Gainers","Losers" or "Both"
+
+        :param ret_df: Boolean value. Default is False. 
+        False -> Chart Js json response
+        True -> DataFrame json response
+
+        :param expiry_date: String date. 
+
+        Example requests:
+
+        1.
+        {
+        "number":5,
+        "gainers_or_losers":"both",
+        "expiry_date":"2021-07-29"
+        }
+
+        Returns top 5 gainersoi and losersoi for futures for the expiry
+        "2021-07-29" in chartjs
+
+        2.
+        {
+        "number":0,
+        "gainers_or_losers":"losers",
+        "expiry_date":"2021-07-29"
+        }
+        Returns top all losers for futures for the expiry
+        "2021-07-29" in chartjs
+
+        2.
+        {
+        "number":0,
+        "gainers_or_losers":"losers",
+        "expiry_date":"2021-07-29",
+        "ret_df":true
+        }
+        Returns top all losers for futures for the expiry
+        "2021-07-29" in dataframe json response
+        '''
     def post(self, request):
         # ********************************* INPUT PARAMS *******************************************
         try:
