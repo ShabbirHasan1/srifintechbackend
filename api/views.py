@@ -1817,8 +1817,9 @@ class Gainers_Losers(APIView):
         # Dataframe returned would have the following columns:
         # ["prev_close", "curr_close", "diff", "percent_diff"]
         res_df = kf.get_gainers_losers_close_df(gnlr_type, expiry_date,from_date,to_date)
-
-
+        debug = False
+        if debug:
+            print(res_df)
         # Check if "ret_df" parameter is True. If True simply return
         # The dataframe in json format. If not return ChartJS response.
         if ret_df:
@@ -2295,11 +2296,18 @@ class Get_Cumulative_OI(APIView):
         return Response({"ticker":"NIFTY","expiry_date":"2021-05-27"})
 
 class Cash_Futures_Arbitrage(APIView):
+    '''
+    Sample Data in Post
+    {   
+        "expiry":"CURRENT" , //"near", "far"
+        "chart" : true
+    }
+    '''
     def post(self,request):
 
         # ********************************* INPUT PARAMS *******************************************
         try:
-            chart_js = request.data.get("chart_js", False)
+            chart = request.data.get("chart", False)
             expiry = request.data.get("expiry","current").upper()
         except Exception as e:
             return Response({"Error encountered while reading input request:\n": str(e)})
@@ -2356,8 +2364,8 @@ class Cash_Futures_Arbitrage(APIView):
             x['name'],
             x['stock_price'],
             x['futures_price'],
-            x['stock_price'] - x['futures_price'],
-            ((x['stock_price'] - x['futures_price']) / x['stock_price'])*100
+            x['futures_price'] - x['stock_price'],
+            ((x['futures_price'] - x['stock_price']) / x['stock_price'])*100
         ]
             if x['stock_price'] !=0 else
             [
@@ -2376,7 +2384,7 @@ class Cash_Futures_Arbitrage(APIView):
 
         stock_df = stock_df.round(2)
         stock_df.sort_values(by="Difference in %",ascending=False, inplace=True)
-        if not chart_js:
+        if not chart:
             return Response(stock_df.to_dict("index"))
         else:
             ####################### chartjs ########################
@@ -2394,3 +2402,9 @@ class Cash_Futures_Arbitrage(APIView):
             )()
             ####################### chartjs ########################
             return Response(json.loads(NewChart.get()))
+
+    def get(self , request):
+        post_data = {   "expiry":"CURRENT" ,
+                        "chart" : "true"
+        }
+        return Response(post_data)
