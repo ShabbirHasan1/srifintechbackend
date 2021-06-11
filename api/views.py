@@ -2408,3 +2408,27 @@ class Cash_Futures_Arbitrage(APIView):
                         "chart" : "true"
         }
         return Response(post_data)
+
+class Gainers_Losers_Pie(APIView):
+    def post(self,request):
+
+        try:
+            kf = KiteFunctions()
+        except Exception as e:
+            return Response({"Error encountered :\n": str(e)})
+
+        # Retrieving the gainers losers dataframe.
+        # Dataframe returned would have the following columns:
+        # ["prev_close", "curr_close", "diff", "percent_diff"]
+        res_df = kf.get_gainers_losers_close_df("STOCKS")
+
+        advances = res_df[res_df.iloc[:, -1] > 0].iloc[:, -1].count().item()
+        declines = res_df[res_df.iloc[:, -1] <= 0].iloc[:, -1].count().item()
+        print({"Advances":advances,
+            "Declines":declines})
+
+
+        # breakpoint()
+        NewChart = gl_piechart(data1 = [advances,declines],
+            labels = ["Advances","Declines"])()
+        return Response(json.loads(NewChart.get()))
