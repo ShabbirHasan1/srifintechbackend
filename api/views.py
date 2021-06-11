@@ -2384,6 +2384,7 @@ class Cash_Futures_Arbitrage(APIView):
 
         stock_df = stock_df.round(2)
         stock_df.sort_values(by="Difference in %",ascending=False, inplace=True)
+        stock_df = stock_df[~(stock_df["Futures Price"] == 0)]
         if not chart:
             return Response(stock_df.to_dict("index"))
         else:
