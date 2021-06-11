@@ -2412,6 +2412,13 @@ class Cash_Futures_Arbitrage(APIView):
 class Fno_Stock_Adv_Decl(APIView):
     def post(self,request):
 
+        # ********************************* INPUT PARAMS *******************************************
+        try:
+            chart = request.data.get("chart", True)
+        except Exception as e:
+            return Response({"Error encountered while reading input request:\n": str(e)})
+
+        # ********************************** INPUT PARAMS ******************************************
         try:
             kf = KiteFunctions()
         except Exception as e:
@@ -2421,10 +2428,15 @@ class Fno_Stock_Adv_Decl(APIView):
         # Dataframe returned would have the following columns:
         # ["prev_close", "curr_close", "diff", "percent_diff"]
         res_df = kf.get_gainers_losers_close_df("STOCKS")
-        
-        # breakpoint()
-        NewChart = gl_piechart(data1 = [
+
+        if not chart:
+            return Response({
+                "Advances":res_df[res_df.iloc[:, -1] > 0].iloc[:, -1].count().item(),
+                "Declines":res_df[res_df.iloc[:, -1] <= 0].iloc[:, -1].count().item()})
+        else:
+
+            NewChart = gl_piechart(data1 = [
             res_df[res_df.iloc[:, -1] <= 0].iloc[:, -1].count().item(),
             res_df[res_df.iloc[:, -1] > 0].iloc[:, -1].count().item()],
             labels = ["Declines","Advances"])()
-        return Response(json.loads(NewChart.get()))
+            return Response(json.loads(NewChart.get()))
