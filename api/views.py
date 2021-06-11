@@ -2429,6 +2429,6 @@ class Gainers_Losers_Pie(APIView):
 
 
         # breakpoint()
-        NewChart = gl_piechart(data1 = [advances,declines],
-            labels = ["Advances","Declines"])()
+        NewChart = gl_piechart(data1 = [declines,advances,],
+            labels = ["Declines","Advances"])()
         return Response(json.loads(NewChart.get()))

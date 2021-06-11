@@ -824,15 +824,18 @@ def gl_piechart(data1,labels):
         type = ChartType.Pie
         
         class labels:
-            grouped = []
+            pass
 
         class data:
             pass
 
         class options:
             indexAxis = 'y'
+            title   = Options.Title(text="FNO Stocks Advances and Declines", fontSize=18,
+                padding=20)
             responsive = True
-            legend = Options.Legend(reverse=True)
+            _lables = Options.Legend_Labels(  boxWidth=70,fontSize=20,fontColor=Color.Black)
+            legend = Options.Legend(reverse=True,labels=_lables)
             tooltips = {
                             "intersect"         : False,
                             # "mode"              : "nearest",
@@ -885,7 +888,9 @@ def gl_piechart(data1,labels):
     PieChart.data.bardata1.data = data1
     # if yaxis_labels is not None:
     PieChart.labels.grouped = labels
-    PieChart.data.bardata1.backgroundColor = [Color.Green,Color.Red]
+    PieChart.data.bardata1.backgroundColor = [Color.Red,Color.Green]
+    PieChart.options.legend = Options.Legend(reverse=True,
+        labels=PieChart.options._lables,position = "right")
     # BarGraph.data.bardata1.label = top_label
     # if bar_type == "Vertical":
     #     BarGraph.type = ChartType.Bar
