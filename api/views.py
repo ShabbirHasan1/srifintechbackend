@@ -2409,7 +2409,7 @@ class Cash_Futures_Arbitrage(APIView):
         }
         return Response(post_data)
 
-class Gainers_Losers_Pie(APIView):
+class Fno_Stock_Adv_Decl(APIView):
     def post(self,request):
 
         try:
@@ -2421,14 +2421,10 @@ class Gainers_Losers_Pie(APIView):
         # Dataframe returned would have the following columns:
         # ["prev_close", "curr_close", "diff", "percent_diff"]
         res_df = kf.get_gainers_losers_close_df("STOCKS")
-
-        advances = res_df[res_df.iloc[:, -1] > 0].iloc[:, -1].count().item()
-        declines = res_df[res_df.iloc[:, -1] <= 0].iloc[:, -1].count().item()
-        print({"Advances":advances,
-            "Declines":declines})
-
-
+        
         # breakpoint()
-        NewChart = gl_piechart(data1 = [declines,advances,],
+        NewChart = gl_piechart(data1 = [
+            res_df[res_df.iloc[:, -1] <= 0].iloc[:, -1].count().item(),
+            res_df[res_df.iloc[:, -1] > 0].iloc[:, -1].count().item()],
             labels = ["Declines","Advances"])()
         return Response(json.loads(NewChart.get()))
