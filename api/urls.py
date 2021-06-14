@@ -25,4 +25,5 @@ urlpatterns = [
    url( r'^optionchain/?$', views.Option_Chain.as_view(),name ='optionchain') ,
    url( r'^cumulativeoi/?$', views.Get_Cumulative_OI.as_view(),name ='cumulativeoi') , 
    url( r'^cashfutarbitrage/?$', views.Cash_Futures_Arbitrage.as_view(),name ='cashfutarbitrage') ,
+   url( r'^fnostockadvdecl/?$', views.Fno_Stock_Adv_Decl.as_view(),name ='fnostockadvdecl') ,
 ]
