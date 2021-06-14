@@ -594,8 +594,7 @@ def gl_bargraph(data1,yaxis_labels,y_label,top_label,barcolor="GREEN",
         
         class labels:
             yaxis_labels = list()
-            xaxis_labels = list()
-
+            # xaxis_labels = list()
         class data:
             pass
 
