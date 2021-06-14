@@ -60,7 +60,7 @@ class Open_Interst_Chart_API_View(APIView):
         kf,oi,po = functions_initializer()
 
         last_traded_day = kf.get_last_traded_dates()['last_traded_date']
-        today_date = dt.datetime.now()
+        today_date = dt.datetime.now().date()
         if today_date == last_traded_day:
             oi_df1 = oi.get_oi_df_today(ticker=ticker,
                                         expiry_date=expiry_date)
