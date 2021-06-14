@@ -1731,9 +1731,9 @@ class Gainers_Losers(APIView):
         :param type: String value. Allowed values are
         "Stocks", "Indices" or "Futures"
 
-        :param ret_df: Boolean value. Default is False. 
-        False -> Chart Js json response
-        True -> DataFrame json response
+        :param chart: Boolean value. Default is True. 
+        True -> Chart Js json response
+        False -> DataFrame json response
 
         :param expiry_date: String date. Optional parameter.
         Required when :param type: set to "Futures"
@@ -1776,7 +1776,7 @@ class Gainers_Losers(APIView):
             number = request.data.get("number", None)
             gainers_or_losers = request.data.get("gainers_or_losers", None).upper()
             gnlr_type = request.data.get("type", None).upper()
-            ret_df = request.data.get("ret_df", False)
+            chart = request.data.get("chart", True)
 
             expiry_date = None
             if gnlr_type in ["FUTURES", "FUT"]:
@@ -1820,9 +1820,9 @@ class Gainers_Losers(APIView):
         debug = False
         if debug:
             print(res_df)
-        # Check if "ret_df" parameter is True. If True simply return
-        # The dataframe in json format. If not return ChartJS response.
-        if ret_df:
+        # Check if "chart" parameter is True. If False simply return
+        # The dataframe in json format. If True return ChartJS response.
+        if not chart:
             if gainers_or_losers == "GAINERS":
                 return Response(
                     dict(
@@ -1960,9 +1960,9 @@ class Gainers_Losers_OI(APIView):
         :param gainers_or_losers: String value. Allowed values are
         "Gainers","Losers" or "Both"
 
-        :param ret_df: Boolean value. Default is False. 
-        False -> Chart Js json response
-        True -> DataFrame json response
+        :param chart: Boolean value. Default is True. 
+        True -> Chart Js json response
+        False -> DataFrame json response
 
         :param expiry_date: String date. 
 
@@ -1992,7 +1992,7 @@ class Gainers_Losers_OI(APIView):
         "number":0,
         "gainers_or_losers":"losers",
         "expiry_date":"2021-07-29",
-        "ret_df":true
+        "chart":false
         }
         Returns top all losers for futures for the expiry
         "2021-07-29" in dataframe json response
@@ -2002,7 +2002,7 @@ class Gainers_Losers_OI(APIView):
         try:
             number = request.data.get("number", None)
             gainers_or_losers = request.data.get("gainers_or_losers", None).upper()
-            ret_df = request.data.get("ret_df", False)
+            chart = request.data.get("chart", True)
             expiry_date = datetime.strptime(
                 request.data.get("expiry_date", None), "%Y-%m-%d"
             ).date()
@@ -2131,9 +2131,9 @@ class Gainers_Losers_OI(APIView):
 
         res_df = res_df.round(2)
 
-        # Check if "ret_df" parameter is True. If True simply return
-        # The dataframe in json format. If not return ChartJS response.
-        if ret_df:
+        # Check if "chart" parameter is True. If False simply return
+        # The dataframe in json format. If True return ChartJS response.
+        if not chart:
             if gainers_or_losers == "GAINERS":
                 return Response(
                     dict(
@@ -2316,7 +2316,7 @@ class Cash_Futures_Arbitrage(APIView):
 
         # ********************************* INPUT PARAMS *******************************************
         try:
-            chart = request.data.get("chart", False)
+            chart = request.data.get("chart", True)
             expiry = request.data.get("expiry","current").upper()
         except Exception as e:
             return Response({"Error encountered while reading input request:\n": str(e)})
