@@ -11,7 +11,7 @@ import math
 from api.implied_vol import implied_volatility
 
 from api.classes import KiteAuthentication, KiteFunctions, MonteCarlo_Simulation, OIAnalysis, PostgreSQLOperations , Charting
-from api.chartjs_classes import *
+from api.chartjs_classes import *  
 import pandas as pd
 import plotly.io as pio
 
@@ -23,12 +23,6 @@ from django.http import HttpResponse
 import numpy as np
 import sys
 
-
-def functions_initializer():
-    kf =  KiteFunctions()
-    oi =  OIAnalysis()
-    po =  PostgreSQLOperations()
-    return kf,oi,po
 
 def Home(request):
     return render(request , 'index.html')
@@ -51,13 +45,17 @@ class Open_Interst_Chart_API_View(APIView):
         # expiry_date_str = content['expiry_date']
         # intraday_ind = contenct['intraday_ind']
         expiry_date = datetime.strptime(expiry_date_str, '%Y-%m-%d').date()
+
+        if expiry_date < dt.datetime.now().date():
+            return Response('Past expiry is not valid')
         display_strikes_count = 15
         # ticker = 'NIFTY'
         # expiry_date = dt.date(2020,12,31)
         
         ##################Input parameters #####################
 
-        kf,oi,po = functions_initializer()
+        kf =  KiteFunctions()
+        oi =  OIAnalysis()
 
         last_traded_day = kf.get_last_traded_dates()['last_traded_date']
         today_date = dt.datetime.now().date()
@@ -66,6 +64,7 @@ class Open_Interst_Chart_API_View(APIView):
                                         expiry_date=expiry_date)
         else: 
             oi_df1 = oi.get_oi_df_anyday(ticker=ticker,
+                   
                                         expiry_date=expiry_date,
                                         date=last_traded_day)
 
@@ -126,6 +125,8 @@ class MaxPain_History_Chart_API_View(APIView):
         logging.debug(pformat("Data in Post is # "))
         logging.debug(pformat(request.data))
         expiry_date = datetime.strptime(expiry_date_str, '%Y-%m-%d').date()
+        if expiry_date < dt.datetime.now().date():
+            return Response('Past expiry is not valid')
         
         connection_string = 'postgresql://doadmin:or5ka898vk8r1wdi@srifintech-db-do-user-8454140-0.b.db.ondigitalocean.com:25060/defaultdb'
 
@@ -137,7 +138,8 @@ class MaxPain_History_Chart_API_View(APIView):
 
         print(from_date)
 
-        kf,oi,po = functions_initializer()
+        kf =  KiteFunctions()
+        oi =  OIAnalysis()
 
         # expiry_date = dt.date(2021,7,29)
 
@@ -196,6 +198,8 @@ class PCR_Day_API_View(APIView):
         ticker = request.data.get('ticker')
         expiry_date_str = request.data.get('expiry_date')
         expiry_date = datetime.strptime(expiry_date_str, '%Y-%m-%d').date()
+        if expiry_date < dt.datetime.now().date():
+            return Response('Past expiry is not valid')
         date = request.data.get('date')
         print(date)
         OI = OIAnalysis()
@@ -228,11 +232,14 @@ class PCR_History_Chart_API_View(APIView):
         logging.debug(pformat(request.data))
        
         expiry_date = datetime.strptime(expiry_date_str, '%Y-%m-%d').date()
+        if expiry_date < dt.datetime.now().date():
+            return Response('Past expiry is not valid')
 
         connection_string = 'postgresql://doadmin:or5ka898vk8r1wdi@srifintech-db-do-user-8454140-0.b.db.ondigitalocean.com:25060/defaultdb'
         db = create_engine(connection_string)
 
-        kf,oi,po = functions_initializer()
+        kf =  KiteFunctions()
+        oi =  OIAnalysis()
 
         today = dt.datetime.now().date()
         from_date = today - dt.timedelta(10)
@@ -592,6 +599,8 @@ class Get_Multistrike_OIchart(APIView):
         ticker = ticker.upper()
         strike_list = strikes
         expiry_date = datetime.strptime(expiry_date_str, '%Y-%m-%d').date()
+        if expiry_date < dt.datetime.now().date():
+            return Response('Past expiry is not valid')
 
         logging.debug(pformat('Ticker # {0}\nExpiry {1}\nStrikes are # {2}\nIntradayIndicator # {3}'.format(ticker,expiry_date, strikes, intraday_ind)))
 
@@ -854,6 +863,8 @@ class Get_Multistrike_OIchange(APIView):
         ticker = request.data.get('ticker')
         expiry_date_str = request.data.get('expiry_date')
         expiry_date = datetime.strptime(expiry_date_str, '%Y-%m-%d').date()
+        if expiry_date < dt.datetime.now().date():
+            return Response('Past expiry is not valid')
         strikes = request.data.get('strikes')
         chart = request.data.get('chart')
         intraday_ind = True
@@ -931,6 +942,8 @@ class Get_OIchange_Chart(APIView):
         # to_date_str = content['to_date']
             
         expiry_date = datetime.strptime(expiry_date_str, '%Y-%m-%d').date()
+        if expiry_date < dt.datetime.now().date():
+            return Response('Past expiry is not valid')
         
         # from_date   = datetime.strptime(from_date_str, '%Y-%m-%d').date()
         # to_date     = datetime.strptime(to_date_str, '%Y-%m-%d').date()
@@ -1025,6 +1038,8 @@ class Get_Maxpain_Chart(APIView):
         
         # intraday_ind = contenct['intraday_ind']
         expiry_date = datetime.strptime(expiry_date_str, '%Y-%m-%d').date()
+        if expiry_date < dt.datetime.now().date():
+            return Response('Past expiry is not valid')
         
         # ticker = 'NIFTY'
         # expiry_date = dt.date(2020,12,31)
@@ -1381,6 +1396,8 @@ class Get_Straddle_Prices(APIView):
             expiry_date = datetime.strptime(
                 content.get("expiry_date", None), "%Y-%m-%d"
             ).date()
+            if expiry_date < dt.datetime.now().date():
+                return Response('Past expiry is not valid')
 
         except Exception as e:
             return Response({"Error encountered while reading input request:\n": str(e)})
@@ -1544,6 +1561,8 @@ class Get_Strangle_Prices(APIView):
             expiry_date = datetime.strptime(
                 content.get("expiry_date", None), "%Y-%m-%d"
             ).date()
+            if expiry_date < dt.datetime.now().date():
+                return Response('Past expiry is not valid')
 
             # Creates a list of dictionaries of the form:
             # [{'CE': 16750.0, 'PE': 12200.0, 'label': 'Pair1'},{'CE': 16700.0, 'PE': 12250.0, 'label': 'Pair2'}]
@@ -1783,6 +1802,8 @@ class Gainers_Losers(APIView):
                 expiry_date = datetime.strptime(
                     request.data.get("expiry_date", None), "%Y-%m-%d"
                 ).date()
+                if expiry_date < dt.datetime.now().date():
+                    return Response('Past expiry is not valid')
 
             from_date = request.data.get("from_date", None)
             to_date = request.data.get("to_date", None)
@@ -2001,6 +2022,8 @@ class Gainers_Losers_OI(APIView):
             expiry_date = datetime.strptime(
                 request.data.get("expiry_date", None), "%Y-%m-%d"
             ).date()
+            if expiry_date < dt.datetime.now().date():
+                return Response('Past expiry is not valid')
         except Exception as e:
             return Response({"Error encountered while reading input request:\n": str(e)})
 
@@ -2264,6 +2287,8 @@ class Get_Cumulative_OI(APIView):
         expiry_date_str = request.data.get('expiry_date')
         date = request.data.get('date')
         expiry_date = datetime.strptime(expiry_date_str, '%Y-%m-%d').date()
+        if expiry_date < dt.datetime.now().date():
+            return Response('Past expiry is not valid')
 
         ##################Input parameters #####################
 
@@ -2408,3 +2433,72 @@ class Cash_Futures_Arbitrage(APIView):
                         "chart" : "true"
         }
         return Response(post_data)
+
+
+class Cumulative_Prices(APIView):
+    def post(self , request):
+        debug=True
+        ticker = request.data.get('ticker').upper()
+        expiry_date_str = request.data.get('expiry_date')
+        expiry_date = datetime.strptime(expiry_date_str, '%Y-%m-%d').date()
+        if expiry_date < dt.datetime.now().date():
+            return Response('Past expiry is not valid')
+        kf =  KiteFunctions()
+        
+        filter_df = kf.master_instruments_df[
+            (kf.master_instruments_df['name']        == ticker)
+        & (kf.master_instruments_df['expiry']      == expiry_date)
+        & (kf.master_instruments_df['segment']     == 'NFO-OPT')
+        ]
+
+        filter_instruments_df = filter_df[['instrument_token', 'strike', 'tradingsymbol', 'instrument_type']].copy()
+        filter_instruments_df.reset_index(drop=True, inplace=True)
+        filter_instruments_df.sort_values(by=['strike'], inplace=True)
+        instruments_list = filter_instruments_df['instrument_token'].to_list()
+
+        # if self.debug:
+        #     print("Here are instruments List to fetch OI... ")
+        #     print(instruments_list)
+
+        quote = kf.ka.kite.quote(instruments_list)
+        test =  kf.ka.kite.quote(13169154)
+        print(test)
+        
+        ltp_df = pd.DataFrame(columns=['strike', 'callltp', 'putltp'])
+        ltp_df['strike'] = kf.get_strike_prices(ticker=ticker, expiry_date=expiry_date)
+        ltp_df['callltp'] = 0.0
+        ltp_df['putltp'] = 0.0
+        ltp_df.set_index(keys='strike', inplace=True)
+
+        for index in filter_instruments_df.index:
+            
+            instrument_token = str(filter_instruments_df['instrument_token'][index])
+            strike_price = filter_instruments_df['strike'][index]
+            ltp_value = quote[instrument_token]['last_price']
+            # print(ltp_value , index)
+            if filter_instruments_df['instrument_type'][index] == "CE":
+                ltp_df['callltp'][strike_price] = ltp_value
+            else:
+                ltp_df['putltp'][strike_price] = ltp_value
+        if debug:
+            print(ltp_df)
+            ltp_df.to_csv('ltp_df.csv')
+
+
+        NewChart = coi_bargraph(
+            data1=[round(ltp_df['callltp'].sum() ,2).item(),round(ltp_df['putltp'].sum().item() ,2)],
+            yaxis_labels= [],
+            y_label="Last Traded Price",
+            top_label="Cumulative Price",
+            barcolor="BOTH",
+            len1=1,
+            len2=1,
+            bar_type="Vertical",
+            xaxis_labels=['Call LTP','Put LTP']
+        )()
+        
+        ####################### chartjs ########################
+        return Response(json.loads(NewChart.get()))
+        
+    def get(self , request):
+        return Response({"ticker":"NIFTY","expiry_date":"2021-05-27"})

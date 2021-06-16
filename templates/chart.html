@@ -13,10 +13,8 @@
 
 <script>
     var data = {{ chartJSON | safe }}
-
     var ctx = document.getElementById("myChart").getContext('2d');
     var myChart = new Chart(ctx, data);
-</script>
-    
+</script>  
 </body>
 </html>
