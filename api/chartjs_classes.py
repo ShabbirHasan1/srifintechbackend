@@ -594,8 +594,7 @@ def gl_bargraph(data1,yaxis_labels,y_label,top_label,barcolor="GREEN",
         
         class labels:
             yaxis_labels = list()
-            xaxis_labels = list()
-
+            # xaxis_labels = list()
         class data:
             pass
 
@@ -816,3 +815,121 @@ def coi_bargraph(data1,yaxis_labels,y_label,top_label,barcolor="GREEN",
             }
 
     return BarGraph
+
+def gl_piechart(data1,labels):
+    class PieChart(BaseChart):
+
+        type = ChartType.Pie
+        
+        class labels:
+            pass
+
+        class data:
+            pass
+
+        class options:
+            indexAxis = 'y'
+            title   = Options.Title(text="FNO Stocks Advances and Declines", fontSize=18,
+                padding=20)
+            responsive = True
+            _lables = Options.Legend_Labels(  boxWidth=70,fontSize=20,fontColor=Color.Black)
+            legend = Options.Legend(reverse=True,labels=_lables)
+            tooltips = {
+                            "intersect"         : False,
+                            # "mode"              : "nearest",
+                            "mode"              : "index",
+                            "axis"              : "y",
+                            "position"          : "nearest",
+                            "displayColors"     : True
+                            # "cornerRadius"      : 3
+            }
+
+            legend = {
+                            'position'      : 'top', 
+                            'labels'        : {
+                            'fontColor'     : Color.Black, 
+                            "boxWidth"      : 35,
+                            # 'fullWidth'   : True,
+                            "fontSize"      : 16,
+                            "fontStyle"     : "bold"
+                            # "padding"     : 50,
+                            # "usePointStyle" : True
+                        }
+            }
+            
+
+            scales = None
+
+    class bardata1:
+        label           = "Gainers Losers"
+        data            = []
+        axis            = 'y'
+        #Border properties
+        borderColor     = Color.Black
+        borderWidth     = 1
+        backgroundColor = None
+        fill            = True
+
+    class bardata2:
+        label           = "Gainers Losers"
+        data            = []
+        axis            = 'y'
+        #Border properties
+        borderColor     = Color.Black
+        borderWidth     = 1
+        backgroundColor = None
+        fill            = True
+
+
+
+    PieChart.data.bardata1 = bardata1
+    PieChart.data.bardata1.data = data1
+    # if yaxis_labels is not None:
+    PieChart.labels.grouped = labels
+    PieChart.data.bardata1.backgroundColor = [Color.Red,Color.Green]
+    PieChart.options.legend = Options.Legend(reverse=True,
+        labels=PieChart.options._lables,position = "right")
+    # BarGraph.data.bardata1.label = top_label
+    # if bar_type == "Vertical":
+    #     BarGraph.type = ChartType.Bar
+
+    # if data2 is not None: 
+    #     BarGraph.data.bardata2 = bardata2
+    #     BarGraph.data.bardata2.data = data2
+    #     BarGraph.data.bardata2.backgroundColor = Color.Red
+    #     BarGraph.data.bardata2.label = "LOOSERS"
+
+    # BarGraph.options.scales = {
+
+    #             "xAxes": [
+    #                     {   
+                           
+    #                        "display"        : True,
+    #                        "labelString"    : "Percent Gain" ,
+    #                         "gridLines"     : {
+    #                             "display"      : True,
+    #                             "drawBorder"   : True
+    #                         }, 
+    #                 }
+    #             ],
+    #             "yAxes": [
+    #                     {
+    #                         "scaleLabel": {
+    #                                         "display"       : True,
+    #                                         "labelString"   : "NSE "+y_label,
+    #                                         "fontColor"     : Color.Black,
+    #                                         "fontSize"      : 16
+    #                             }, 
+    #                         "id"            : "y1",
+    #                         "position"      : position,
+    #                         "display"       : True,
+    #                         "gridLines"     : {
+    #                                             "display"     : True
+    #                                         # "drawBorder"    : True
+    #                     }
+    #                 }
+                   
+    #             ]
+    #         }
+
+    return PieChart

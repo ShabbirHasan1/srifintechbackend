@@ -1750,9 +1750,9 @@ class Gainers_Losers(APIView):
         :param type: String value. Allowed values are
         "Stocks", "Indices" or "Futures"
 
-        :param ret_df: Boolean value. Default is False. 
-        False -> Chart Js json response
-        True -> DataFrame json response
+        :param chart: Boolean value. Default is True. 
+        True -> Chart Js json response
+        False -> DataFrame json response
 
         :param expiry_date: String date. Optional parameter.
         Required when :param type: set to "Futures"
@@ -1795,7 +1795,7 @@ class Gainers_Losers(APIView):
             number = request.data.get("number", None)
             gainers_or_losers = request.data.get("gainers_or_losers", None).upper()
             gnlr_type = request.data.get("type", None).upper()
-            ret_df = request.data.get("ret_df", False)
+            chart = request.data.get("chart", True)
 
             expiry_date = None
             if gnlr_type in ["FUTURES", "FUT"]:
@@ -1841,9 +1841,9 @@ class Gainers_Losers(APIView):
         debug = False
         if debug:
             print(res_df)
-        # Check if "ret_df" parameter is True. If True simply return
-        # The dataframe in json format. If not return ChartJS response.
-        if ret_df:
+        # Check if "chart" parameter is True. If False simply return
+        # The dataframe in json format. If True return ChartJS response.
+        if not chart:
             if gainers_or_losers == "GAINERS":
                 return Response(
                     dict(
@@ -1856,9 +1856,9 @@ class Gainers_Losers(APIView):
             elif gainers_or_losers == "LOSERS":
                 return Response(
                     dict(
-                        losers=res_df.iloc[-number:, -1].to_dict()
+                        losers=res_df.iloc[-number:, -1][::-1].to_dict()
                         if number != 0
-                        else res_df[res_df.iloc[:, -1] < 0].iloc[:, -1].to_dict()
+                        else res_df[res_df.iloc[:, -1] < 0].iloc[:, -1][::-1].to_dict()
                     )
                 )
 
@@ -1868,9 +1868,9 @@ class Gainers_Losers(APIView):
                     gainers=res_df.iloc[:number, -1].to_dict()
                     if number != 0
                     else res_df[res_df.iloc[:, -1] > 0].iloc[:, -1].to_dict(),
-                    losers=res_df.iloc[-number:, -1].to_dict()
+                    losers=res_df.iloc[-number:, -1][::-1].to_dict()
                     if number != 0
-                    else res_df[res_df.iloc[:, -1] < 0].iloc[:, -1].to_dict(),
+                    else res_df[res_df.iloc[:, -1] < 0].iloc[:, -1][::-1].to_dict(),
                 )
             )
 
@@ -1915,27 +1915,30 @@ class Gainers_Losers(APIView):
 
         elif gainers_or_losers == "LOSERS":
             NewChart = gl_bargraph(
-                data1=res_df[res_df.iloc[:, -1] < 0].iloc[-number:, -1].tolist()
+                data1=res_df[res_df.iloc[:, -1] < 0].iloc[-number:, -1][::-1].tolist()
                 if number != 0
-                else res_df[res_df.iloc[:, -1] < 0].iloc[:, -1].tolist(),
+                else res_df[res_df.iloc[:, -1] < 0].iloc[:, -1][::-1].tolist(),
                 yaxis_labels=res_df[res_df.iloc[:, -1] < 0]
                 .iloc[
                     -number:,
-                ]
+                ][::-1]
                 .index.tolist()
                 if number != 0
-                else res_df[res_df.iloc[:, -1] < 0].index.tolist(),
+                else res_df[res_df.iloc[:, -1] < 0][::-1].index.tolist(),
                 y_label=gnlr_type,
                 top_label=gainers_or_losers,
                 barcolor="RED",
                 position="right",
             )()
-        else:
+        else:   
             NewChart = gl_bargraph(
                 data1=res_df[res_df.iloc[:, -1] > 0].iloc[:number, -1].tolist()
-                + res_df[res_df.iloc[:, -1] < 0].iloc[-number:, -1].tolist()
+                + res_df[res_df.iloc[:, -1] < 0].iloc[-number:, -1][::-1].tolist()
                 if number != 0
-                else res_df[res_df.iloc[:, -1] != 0].iloc[:, -1].tolist(),
+                # else res_df[res_df.iloc[:, -1] != 0].iloc[:, -1].tolist(),
+                else res_df[res_df.iloc[:, -1] > 0].iloc[:, -1].tolist()
+                + res_df[res_df.iloc[:, -1] < 0].iloc[:, -1][::-1].tolist(),
+
                 yaxis_labels=res_df[res_df.iloc[:, -1] > 0]
                 .iloc[
                     :number,
@@ -1944,10 +1947,12 @@ class Gainers_Losers(APIView):
                 + res_df[res_df.iloc[:, -1] < 0]
                 .iloc[
                     -number:,
-                ]
+                ][::-1]
                 .index.tolist()
                 if number != 0
-                else res_df[~(res_df.iloc[:, -1] == 0)].index.tolist(),
+                else res_df[res_df.iloc[:, -1] > 0].index.tolist()
+                + res_df[res_df.iloc[:, -1] < 0][::-1].index.tolist(),
+
                 y_label=gnlr_type,
                 top_label="GAINERS & LOSERS",
                 barcolor="BOTH",
@@ -1976,9 +1981,9 @@ class Gainers_Losers_OI(APIView):
         :param gainers_or_losers: String value. Allowed values are
         "Gainers","Losers" or "Both"
 
-        :param ret_df: Boolean value. Default is False. 
-        False -> Chart Js json response
-        True -> DataFrame json response
+        :param chart: Boolean value. Default is True. 
+        True -> Chart Js json response
+        False -> DataFrame json response
 
         :param expiry_date: String date. 
 
@@ -2008,7 +2013,7 @@ class Gainers_Losers_OI(APIView):
         "number":0,
         "gainers_or_losers":"losers",
         "expiry_date":"2021-07-29",
-        "ret_df":true
+        "chart":false
         }
         Returns top all losers for futures for the expiry
         "2021-07-29" in dataframe json response
@@ -2018,7 +2023,7 @@ class Gainers_Losers_OI(APIView):
         try:
             number = request.data.get("number", None)
             gainers_or_losers = request.data.get("gainers_or_losers", None).upper()
-            ret_df = request.data.get("ret_df", False)
+            chart = request.data.get("chart", True)
             expiry_date = datetime.strptime(
                 request.data.get("expiry_date", None), "%Y-%m-%d"
             ).date()
@@ -2149,9 +2154,9 @@ class Gainers_Losers_OI(APIView):
 
         res_df = res_df.round(2)
 
-        # Check if "ret_df" parameter is True. If True simply return
-        # The dataframe in json format. If not return ChartJS response.
-        if ret_df:
+        # Check if "chart" parameter is True. If False simply return
+        # The dataframe in json format. If True return ChartJS response.
+        if not chart:
             if gainers_or_losers == "GAINERS":
                 return Response(
                     dict(
@@ -2168,9 +2173,9 @@ class Gainers_Losers_OI(APIView):
             elif gainers_or_losers == "LOSERS":
                 return Response(
                     dict(
-                        losers=res_df[res_df < 0].iloc[-number:].to_dict()
+                        losers=res_df[res_df < 0].iloc[-number:][::-1].to_dict()
                         if number != 0
-                        else res_df[res_df < 0].to_dict()
+                        else res_df[res_df < 0][::-1].to_dict()
                     )
                 )
 
@@ -2184,9 +2189,9 @@ class Gainers_Losers_OI(APIView):
                     .to_dict()
                     if number != 0
                     else res_df[res_df > 0].to_dict(),
-                    losers=res_df[res_df < 0].iloc[-number:].to_dict()
+                    losers=res_df[res_df < 0].iloc[-number:][::-1].to_dict()
                     if number != 0
-                    else res_df[res_df < 0].to_dict(),
+                    else res_df[res_df < 0][::-1].to_dict(),
                 )
             )
 
@@ -2233,12 +2238,12 @@ class Gainers_Losers_OI(APIView):
 
         elif gainers_or_losers == "LOSERS":
             NewChart = gl_bargraph(
-                data1=res_df[res_df < 0].iloc[-number:].tolist()
+                data1=res_df[res_df < 0].iloc[-number:][::-1].tolist()
                 if number != 0
-                else res_df[res_df < 0].tolist(),
-                yaxis_labels=res_df[res_df < 0].iloc[-number:].index.tolist()
+                else res_df[res_df < 0][::-1].tolist(),
+                yaxis_labels=res_df[res_df < 0].iloc[-number:][::-1].index.tolist()
                 if number != 0
-                else res_df[res_df < 0].index.tolist(),
+                else res_df[res_df < 0][::-1].index.tolist(),
                 y_label="FUTURES",
                 top_label=gainers_or_losers + " OI",
                 barcolor="RED",
@@ -2251,17 +2256,21 @@ class Gainers_Losers_OI(APIView):
                     :number,
                 ]
                 .tolist()
-                + res_df[res_df < 0].iloc[-number:].tolist()
+                + res_df[res_df < 0].iloc[-number:][::-1].tolist()
                 if number != 0
-                else res_df[res_df != 0].tolist(),
+                else res_df[res_df > 0].tolist()
+                + res_df[res_df < 0][::-1].tolist(),
+
                 yaxis_labels=res_df[res_df > 0]
                 .iloc[
                     :number,
                 ]
                 .index.tolist()
-                + res_df[res_df < 0].iloc[-number:].index.tolist()
+                + res_df[res_df < 0].iloc[-number:][::-1].index.tolist()
                 if number != 0
-                else res_df[~(res_df == 0)].index.tolist(),
+                else res_df[res_df > 0].index.tolist()
+                + res_df[res_df < 0][::-1].index.tolist(),
+
                 y_label="FUTURES",
                 top_label="GAINERS OI & LOSERS OI",
                 barcolor="BOTH",
@@ -2332,7 +2341,7 @@ class Cash_Futures_Arbitrage(APIView):
 
         # ********************************* INPUT PARAMS *******************************************
         try:
-            chart = request.data.get("chart", False)
+            chart = request.data.get("chart", True)
             expiry = request.data.get("expiry","current").upper()
         except Exception as e:
             return Response({"Error encountered while reading input request:\n": str(e)})
@@ -2409,6 +2418,7 @@ class Cash_Futures_Arbitrage(APIView):
 
         stock_df = stock_df.round(2)
         stock_df.sort_values(by="Difference in %",ascending=False, inplace=True)
+        stock_df = stock_df[~(stock_df["Futures Price"] == 0)]
         if not chart:
             return Response(stock_df.to_dict("index"))
         else:
@@ -2434,6 +2444,7 @@ class Cash_Futures_Arbitrage(APIView):
         }
         return Response(post_data)
 
+<<<<<<< HEAD
 
 class Cumulative_Prices(APIView):
     def post(self , request):
@@ -2502,3 +2513,35 @@ class Cumulative_Prices(APIView):
         
     def get(self , request):
         return Response({"ticker":"NIFTY","expiry_date":"2021-05-27"})
+
+class Fno_Stock_Adv_Decl(APIView):
+    def post(self,request):
+
+        # ********************************* INPUT PARAMS *******************************************
+        try:
+            chart = request.data.get("chart", True)
+        except Exception as e:
+            return Response({"Error encountered while reading input request:\n": str(e)})
+
+        # ********************************** INPUT PARAMS ******************************************
+        try:
+            kf = KiteFunctions()
+        except Exception as e:
+            return Response({"Error encountered :\n": str(e)})
+
+        # Retrieving the gainers losers dataframe.
+        # Dataframe returned would have the following columns:
+        # ["prev_close", "curr_close", "diff", "percent_diff"]
+        res_df = kf.get_gainers_losers_close_df("STOCKS")
+
+        if not chart:
+            return Response({
+                "Advances":res_df[res_df.iloc[:, -1] > 0].iloc[:, -1].count().item(),
+                "Declines":res_df[res_df.iloc[:, -1] <= 0].iloc[:, -1].count().item()})
+        else:
+
+            NewChart = gl_piechart(data1 = [
+            res_df[res_df.iloc[:, -1] <= 0].iloc[:, -1].count().item(),
+            res_df[res_df.iloc[:, -1] > 0].iloc[:, -1].count().item()],
+            labels = ["Declines","Advances"])()
+            return Response(json.loads(NewChart.get()))
