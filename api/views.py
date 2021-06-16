@@ -2444,8 +2444,6 @@ class Cash_Futures_Arbitrage(APIView):
         }
         return Response(post_data)
 
-<<<<<<< HEAD
-
 class Cumulative_Prices(APIView):
     def post(self , request):
         debug=True
