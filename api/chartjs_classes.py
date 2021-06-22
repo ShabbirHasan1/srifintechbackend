@@ -704,7 +704,6 @@ def gl_bargraph(data1,yaxis_labels,y_label,top_label,barcolor="GREEN",
 def coi_bargraph(data1,yaxis_labels,y_label,top_label,barcolor="GREEN",
     position='left',len1=None,len2=None,bar_type="Horizontal",xaxis_labels=None):
     class BarGraph(BaseChart):
-
         type = ChartType.Bar
         
         class labels:
