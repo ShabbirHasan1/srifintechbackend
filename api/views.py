@@ -1403,6 +1403,7 @@ class Get_Straddle_Prices(APIView):
             return Response({"Error encountered while reading input request:\n": str(e)})
         straddle_strike_list = content.get("strikes_list", [])
         intraday_ind = content.get("intraday_ind", True)
+        combined = content.get("combined",False)
         ####################### Input parameters #####################
 
         try:
@@ -1515,6 +1516,10 @@ class Get_Straddle_Prices(APIView):
             final_straddle_df.index = final_straddle_df.index.strftime("%H:%M")
         else:
             final_straddle_df.index = final_straddle_df.index.strftime("%b-%d")
+
+        if combined:
+            final_straddle_df["Combined"] = final_straddle_df[straddle_strike_list].sum(axis=1)
+            straddle_strike_list.append("Combined")
 
         ############################ chartjs ##########################
         straddle_linegraph = strangle_linegraph
