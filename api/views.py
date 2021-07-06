@@ -1403,7 +1403,7 @@ class Get_Straddle_Prices(APIView):
             return Response({"Error encountered while reading input request:\n": str(e)})
         straddle_strike_list = content.get("strikes_list", [])
         intraday_ind = content.get("intraday_ind", True)
-        combined = content.get("combined",False)
+        combined = content.get("combined",True)
         ####################### Input parameters #####################
 
         try:
@@ -1519,7 +1519,7 @@ class Get_Straddle_Prices(APIView):
 
         if combined:
             final_straddle_df["Combined"] = final_straddle_df[straddle_strike_list].sum(axis=1)
-            straddle_strike_list.append("Combined")
+            straddle_strike_list.insert(0,"Combined")
 
         ############################ chartjs ##########################
         straddle_linegraph = strangle_linegraph
@@ -1583,7 +1583,7 @@ class Get_Strangle_Prices(APIView):
         except Exception as e:
             return Response({"Error encountered while reading input request:\n": str(e)})
         intraday_ind = content.get("intraday_ind", True)
-        combined = content.get("combined",False)
+        combined = content.get("combined",True)
         ####################### Input parameters #####################
 
         days = 10
@@ -1710,7 +1710,7 @@ class Get_Strangle_Prices(APIView):
         logging.debug(pformat(final_strangle_df))
         if combined:
             final_strangle_df["Combined"] = final_strangle_df[ [i['label'] for i in strangle_strike_list] ].sum(axis=1)
-            strangle_strike_list.append({'label': "Combined"})
+            strangle_strike_list.insert(0,{'label': "Combined"})
 
         ####################### chartjs ########################
         NewChart = strangle_linegraph(
