@@ -362,8 +362,8 @@ def maxpain_linegraph(label_ticker,scale_label_str):
                 fill            = False
                 yAxisID      = 'y1'
                 lineTension  = 0
-                pointStyle = 'triangle'
-                borderDash    = [3, 1] 
+                # pointStyle = 'triangle'
+                # borderDash    = [3, 1] 
                 #Point Properties
                 pointRadius  = 1
 
@@ -497,8 +497,8 @@ def pcr_linegraph(label_ticker,scale_label_str):
                 fill            = False
                 yAxisID      = 'y1'
                 lineTension  = 0
-                pointStyle = 'triangle'
-                borderDash    = [3, 1] 
+                # pointStyle = 'triangle'
+                # borderDash    = [3, 1] 
                 #Point Properties
                 pointRadius  = 1
 
