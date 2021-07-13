@@ -14,6 +14,8 @@ import os
 import sys
 import dj_database_url
 
+
+
 from django.core.management.utils import get_random_secret_key
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -46,6 +48,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'rest_framework',
+    'rest_framework.authtoken',
     'api'
 ]
 
@@ -64,6 +67,13 @@ CORS_ORIGIN_WHITELIST = [
      'http://localhost:8000',
      'https://srifintechbackend-acqwu.ondigitalocean.app'
 ]
+
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+}
 
 
 ROOT_URLCONF = 'srifintechbackend.urls'
