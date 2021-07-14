@@ -1553,6 +1553,11 @@ class Get_Straddle_Prices(APIView):
 
         return Response(ChartJSON_json)
 
+class Get_Straddle_Combined(APIView):
+    def post(self, request):
+        return Response({"Hello":"World"})
+
+
 class Get_Strangle_Prices(APIView):
     def post(self, request):
         logging.debug(pformat("Beginning of strangle api..."))
