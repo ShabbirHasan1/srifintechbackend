@@ -1553,6 +1553,157 @@ class Get_Straddle_Prices(APIView):
 
         return Response(ChartJSON_json)
 
+class Get_Straddle_Combined(APIView):
+    def post(self, request):
+        logging.debug(pformat("Beginning of straddle combined api..."))
+
+        content = request.data
+        logging.debug(pformat("Data in Post for /straddlecombined is # "))
+        logging.debug(pformat(content))
+
+        ####################### Input parameters #####################
+        try:
+            ticker = content.get("ticker", None).upper()
+            expiry_date = datetime.strptime(
+                content.get("expiry_date", None), "%Y-%m-%d"
+            ).date()
+            if expiry_date < dt.datetime.now().date():
+                return Response('Past expiry is not valid')
+
+        except Exception as e:
+            return Response({"Error encountered while reading input request:\n": str(e)})
+        strategy_legs = content.get("strategy_legs", [])
+        intraday_ind = content.get("intraday_ind", True)
+        # combined = content.get("combined",True)
+        ####################### Input parameters #####################
+
+        try:
+            kf = KiteFunctions()
+        except Exception as e:
+            return_text = 'Error encountered # ' + e
+            return Response(return_text)
+        days = 10
+        today_date = dt.datetime.now().date()
+        if intraday_ind:
+            start_date = kf.get_last_traded_dates()["last_traded_date"]
+            interval = kf.interval_5minute
+        else:
+            start_date = dt.datetime.now().date() - dt.timedelta(days=days)
+            interval = kf.interval_day
+        strategy_legs = {(strike_price.upper()):(multiplying_factor if trade_type.upper() == "SELL" else -multiplying_factor) for multiplying_factor,strike_price,trade_type in strategy_legs}
+        end_date = today_date
+
+        logging.debug(
+            pformat(
+                "\n\nTicker # {0}\nExpiry Date # {1}\nStrategy Legs # {2}\nIntraday Indicator # {3}\nStart Date # {4}\nEnd Date # {5}".format(
+                    ticker,
+                    expiry_date,
+                    strategy_legs,
+                    intraday_ind,
+                    start_date,
+                    end_date,
+                )
+            )
+        )
+
+        final_straddle_df = pd.DataFrame()
+
+        for strike_price in strategy_legs.keys():
+            filter_df = kf.master_instruments_df[
+                (kf.master_instruments_df["name"] == ticker)
+                & (kf.master_instruments_df["strike"] == int(str(strike_price)[:-2]))
+                & (kf.master_instruments_df["expiry"] == expiry_date)
+                & (kf.master_instruments_df["instrument_type"] == str(strike_price)[-2:])
+            ]
+            
+            logging.debug(pformat(filter_df))
+
+            straddle_instrument = filter_df["tradingsymbol"].values[0]
+            straddle_prices_df = kf.get_price_history(
+                ticker=straddle_instrument,
+                start_date=start_date,
+                end_date=end_date,
+                interval=interval,
+            )
+            straddle_prices_df[strike_price] = straddle_prices_df["close"]
+            straddle_prices_df.drop(
+                columns=["open", "low", "high", "close", "volume"], inplace=True
+            )
+            
+            straddle_prices_df = straddle_prices_df.apply(lambda x:x*strategy_legs[strike_price])
+            
+            if final_straddle_df.empty:
+                final_straddle_df = straddle_prices_df.copy()
+            else:
+                final_straddle_df = pd.concat(
+                    [final_straddle_df, straddle_prices_df], axis=1, join="inner"
+                )
+            
+        if ticker.upper() == "NIFTY":
+            base_ticker = "NIFTY 50"
+        elif ticker.upper() == "BANKNIFTY":
+            base_ticker = "NIFTY BANK"
+        else:
+            base_ticker = ticker.upper()
+
+        ticker_df = kf.get_price_history(
+            ticker=base_ticker,
+            start_date=start_date,
+            end_date=end_date,
+            interval=interval,
+        )
+        
+        if not ticker_df.empty:
+            ticker_df.drop(columns=["open", "high", "low", "volume"], inplace=True)
+            ticker_df.rename(columns={"close": ticker}, inplace=True)
+        else:
+            logging.debug(pformat("Data for Base ticker is not fetched..."))
+        
+        final_straddle_df = pd.concat(
+            [final_straddle_df, ticker_df], axis=1, join="inner"
+        )
+        final_straddle_df = final_straddle_df.apply(lambda x: round(x, 2), axis=1)
+
+        logging.debug(pformat("-****************************************"))
+        logging.info(pformat(final_straddle_df))
+
+        if intraday_ind is True:
+            final_straddle_df.index = final_straddle_df.index.strftime("%H:%M")
+        else:
+            final_straddle_df.index = final_straddle_df.index.strftime("%b-%d")
+
+        # if combined:
+        final_straddle_df["Combined"] = final_straddle_df[list(strategy_legs.keys())].sum(axis=1)
+        final_straddle_df = final_straddle_df[[ticker,"Combined"]]
+        
+        ############################ chartjs ##########################
+        straddle_linegraph = strangle_linegraph
+        straddle_newline = strangle_newline
+
+        NewChart = straddle_linegraph(
+            label_ticker=ticker, scale_label_str="Straddle Prices"
+        )()
+        NewChart.labels.xaxis_labels = final_straddle_df.index.to_list()
+        NewChart.data.linedata.data = final_straddle_df[ticker].to_list()
+        ChartJSON_json = json.loads(NewChart.get())
+
+        ###Adding New Line
+        newline = straddle_newline(
+            data=final_straddle_df["Combined"].to_list(),
+            fill=False,
+            label="Combined",
+            yAxisID="y2",
+            borderColor= 0,
+        )()
+        newline_json = json.loads(json.dumps(newline.__dict__))
+        ChartJSON_json["data"]["datasets"].append(newline_json)
+
+        logging.debug(pformat("Rendering chartjson string..."))
+        ####################### chartjs ########################
+
+        return Response(ChartJSON_json)
+
+
 class Get_Strangle_Prices(APIView):
     def post(self, request):
         logging.debug(pformat("Beginning of strangle api..."))
