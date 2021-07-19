@@ -1680,7 +1680,7 @@ class Get_Strategy_Chart(APIView):
         straddle_newline = strangle_newline
 
         NewChart = straddle_linegraph(
-            label_ticker=ticker, scale_label_str="Straddle Prices"
+            label_ticker=ticker, scale_label_str="Strategy Chart"
         )()
         NewChart.labels.xaxis_labels = final_straddle_df.index.to_list()
         NewChart.data.linedata.data = final_straddle_df[ticker].to_list()
