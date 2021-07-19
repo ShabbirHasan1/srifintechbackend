@@ -1553,9 +1553,9 @@ class Get_Straddle_Prices(APIView):
 
         return Response(ChartJSON_json)
 
-class Get_Straddle_Combined(APIView):
+class Get_Strategy_Chart(APIView):
     def post(self, request):
-        logging.debug(pformat("Beginning of straddle combined api..."))
+        logging.debug(pformat("Beginning of strategy chart api..."))
 
         content = request.data
         logging.debug(pformat("Data in Post for /straddlecombined is # "))
@@ -1672,7 +1672,6 @@ class Get_Straddle_Combined(APIView):
         else:
             final_straddle_df.index = final_straddle_df.index.strftime("%b-%d")
 
-        # if combined:
         final_straddle_df["Combined"] = final_straddle_df[list(strategy_legs.keys())].sum(axis=1)
         final_straddle_df = final_straddle_df[[ticker,"Combined"]]
         
@@ -1702,7 +1701,6 @@ class Get_Straddle_Combined(APIView):
         ####################### chartjs ########################
 
         return Response(ChartJSON_json)
-
 
 class Get_Strangle_Prices(APIView):
     def post(self, request):
