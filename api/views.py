@@ -2930,9 +2930,13 @@ class Cash_Futures_Arbitrage(APIView):
         stock_df = stock_df.round(2)
         stock_df.sort_values(by="Difference in %",ascending=False, inplace=True)
         stock_df = stock_df[~(stock_df["Futures Price"] == 0)]
+
+        # breakpoint()
         if not chart:
+            stock_df.fillna("Null",inplace=True)
             return Response(stock_df.to_dict("index"))
         else:
+            stock_df.fillna(0,inplace=True)
             ####################### chartjs ########################
             cfa_bargraph = gl_bargraph
 
