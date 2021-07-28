@@ -2841,100 +2841,157 @@ class Get_Cumulative_OI(APIView):
         return Response({"ticker":"NIFTY","expiry_date":"2021-05-27"})
 
 class Cash_Futures_Arbitrage(APIView):
-    '''
+    """
     Sample Data in Post
-    {   
+    {
         "expiry":"CURRENT" , //"near", "far"
         "chart" : true
     }
-    '''
-    def post(self,request):
+    """
+
+    def post(self, request):
 
         # ********************************* INPUT PARAMS *******************************************
         try:
             chart = request.data.get("chart", True)
-            expiry = request.data.get("expiry","current").upper()
+            expiry = request.data.get("expiry", "current").upper()
         except Exception as e:
-            return Response({"Error encountered while reading input request:\n": str(e)})
+            return Response(
+                {"Error encountered while reading input request:\n": str(e)}
+            )
 
         # ********************************** INPUT PARAMS ******************************************
         kf = KiteFunctions()
-        exclude_list = ["NIFTY","FINNIFTY","BANKNIFTY"]
+        exclude_list = ["NIFTY", "FINNIFTY", "BANKNIFTY"]
 
         if expiry == "CURRENT":
-            stock_df = kf.master_instruments_df[(kf.master_instruments_df["segment"]=="NFO-FUT")
-                                 & ~ (kf.master_instruments_df["name"].isin(exclude_list))
-                                 & (kf.master_instruments_df["expiry"]==kf.master_instruments_df[
-                                     (kf.master_instruments_df["segment"]=="NFO-FUT")
-                                      & ~ (kf.master_instruments_df["name"].isin(exclude_list))]["expiry"].min())]
+            stock_df = kf.master_instruments_df[
+                (kf.master_instruments_df["segment"] == "NFO-FUT")
+                & ~(kf.master_instruments_df["name"].isin(exclude_list))
+                & (
+                    kf.master_instruments_df["expiry"]
+                    == kf.master_instruments_df[
+                        (kf.master_instruments_df["segment"] == "NFO-FUT")
+                        & ~(kf.master_instruments_df["name"].isin(exclude_list))
+                    ]["expiry"].min()
+                )
+            ]
         elif expiry == "NEAR":
-            stock_df = kf.master_instruments_df[(kf.master_instruments_df["segment"]=="NFO-FUT")
-                                 & ~ (kf.master_instruments_df["name"].isin(exclude_list))
-                                 & ~(kf.master_instruments_df["expiry"]==kf.master_instruments_df[
-                                     (kf.master_instruments_df["segment"]=="NFO-FUT")
-                                      & ~ (kf.master_instruments_df["name"].isin(exclude_list))]["expiry"].min())
-                                 & ~(kf.master_instruments_df["expiry"]==kf.master_instruments_df[
-                                     (kf.master_instruments_df["segment"]=="NFO-FUT")
-                                      & ~ (kf.master_instruments_df["name"].isin(exclude_list))]["expiry"].max())
-                                 & ~ (kf.master_instruments_df["exchange_token"]==0)]
+            stock_df = kf.master_instruments_df[
+                (kf.master_instruments_df["segment"] == "NFO-FUT")
+                & ~(kf.master_instruments_df["name"].isin(exclude_list))
+                & ~(
+                    kf.master_instruments_df["expiry"]
+                    == kf.master_instruments_df[
+                        (kf.master_instruments_df["segment"] == "NFO-FUT")
+                        & ~(kf.master_instruments_df["name"].isin(exclude_list))
+                    ]["expiry"].min()
+                )
+                & ~(
+                    kf.master_instruments_df["expiry"]
+                    == kf.master_instruments_df[
+                        (kf.master_instruments_df["segment"] == "NFO-FUT")
+                        & ~(kf.master_instruments_df["name"].isin(exclude_list))
+                    ]["expiry"].max()
+                )
+                & ~(kf.master_instruments_df["exchange_token"] == 0)
+            ]
 
         elif expiry == "FAR":
-            stock_df = kf.master_instruments_df[(kf.master_instruments_df["segment"]=="NFO-FUT")
-                                 & ~ (kf.master_instruments_df["name"].isin(exclude_list))
-                                 & (kf.master_instruments_df["expiry"]==kf.master_instruments_df[
-                                     (kf.master_instruments_df["segment"]=="NFO-FUT")
-                                      & ~ (kf.master_instruments_df["name"].isin(exclude_list))]["expiry"].max())]
+            stock_df = kf.master_instruments_df[
+                (kf.master_instruments_df["segment"] == "NFO-FUT")
+                & ~(kf.master_instruments_df["name"].isin(exclude_list))
+                & (
+                    kf.master_instruments_df["expiry"]
+                    == kf.master_instruments_df[
+                        (kf.master_instruments_df["segment"] == "NFO-FUT")
+                        & ~(kf.master_instruments_df["name"].isin(exclude_list))
+                    ]["expiry"].max()
+                )
+            ]
 
-        stock_df = pd.concat([stock_df,stock_df.loc[:,"tradingsymbol"].apply(lambda x:"NFO:"+x)],axis=1)
+        stock_df = pd.concat(
+            [stock_df, stock_df.loc[:, "tradingsymbol"].apply(lambda x: "NFO:" + x)],
+            axis=1,
+        )
 
         stock_df.columns.values[-1] = "exchange_tradingsymbol"
 
-        stock_df["exchange_name"] = stock_df.apply(lambda x:"NSE:"+x["name"],axis=1)
+        stock_df["exchange_name"] = stock_df.apply(lambda x: "NSE:" + x["name"], axis=1)
 
-        stock_df.reset_index(drop=True,inplace=True)
+        stock_df.reset_index(drop=True, inplace=True)
 
-        stock_df = stock_df.join(pd.DataFrame(kf.kite.quote(stock_df["exchange_name"].tolist())).transpose()['last_price'],on="exchange_name",how="inner",rsuffix="_stocks")
+        stock_df = stock_df.join(
+            pd.DataFrame(kf.kite.quote(stock_df["exchange_name"].tolist())).transpose()[
+                "last_price"
+            ],
+            on="exchange_name",
+            how="inner",
+            rsuffix="_stocks",
+        )
 
-        stock_df = stock_df.join(pd.DataFrame(kf.kite.quote(stock_df["exchange_tradingsymbol"].tolist())).transpose()['last_price'],on="exchange_tradingsymbol",how="inner",rsuffix="_futures")
-        
-        stock_df = stock_df.apply(lambda x:[
-            x['name'],
-            x['last_price_stocks'],
-            x['last_price_futures'],
-            x['last_price_futures'] - x['last_price_stocks'],
-            ((x['last_price_futures'] - x['last_price_stocks']) / x['last_price_stocks'])*100
-        ]
-            if x['last_price_stocks'] !=0 else
-            [
-            x['name'],
-            x['last_price_stocks'],
-            x['last_price_futures'],
-            None,
-            None],axis=1)
+        stock_df = stock_df.join(
+            pd.DataFrame(
+                kf.kite.quote(stock_df["exchange_tradingsymbol"].tolist())
+            ).transpose()["last_price"],
+            on="exchange_tradingsymbol",
+            how="inner",
+            rsuffix="_futures",
+        )
 
-        stock_df = pd.DataFrame(stock_df.to_list(),columns = ["FNO Stocks","Stock Price",
-            "Futures Price","Price Change","Difference in %"])
+        stock_df = stock_df.apply(
+            lambda x: [
+                x["name"],
+                x["last_price_stocks"],
+                x["last_price_futures"],
+                x["last_price_futures"] - x["last_price_stocks"],
+                (
+                    (x["last_price_futures"] - x["last_price_stocks"])
+                    / x["last_price_stocks"]
+                )
+                * 100,
+            ]
+            if x["last_price_stocks"] != 0
+            else [
+                x["name"],
+                x["last_price_stocks"],
+                x["last_price_futures"],
+                None,
+                None,
+            ],
+            axis=1,
+        )
 
-        stock_df.index = stock_df['FNO Stocks']
+        stock_df = pd.DataFrame(
+            stock_df.to_list(),
+            columns=[
+                "FNO Stocks",
+                "Stock Price",
+                "Futures Price",
+                "Price Change",
+                "Difference in %",
+            ],
+        )
 
-        stock_df.drop(labels=["FNO Stocks"],axis=1,inplace=True)
+        stock_df.index = stock_df["FNO Stocks"]
+
+        stock_df.drop(labels=["FNO Stocks"], axis=1, inplace=True)
 
         stock_df = stock_df.round(2)
-        stock_df.sort_values(by="Difference in %",ascending=False, inplace=True)
+        stock_df.sort_values(by="Difference in %", ascending=False, inplace=True)
         stock_df = stock_df[~(stock_df["Futures Price"] == 0)]
 
-        # breakpoint()
         if not chart:
-            stock_df.fillna("Null",inplace=True)
+            stock_df.fillna("Null", inplace=True)
             return Response(stock_df.to_dict("index"))
         else:
-            stock_df.fillna(0,inplace=True)
+            stock_df.fillna(0, inplace=True)
             ####################### chartjs ########################
             cfa_bargraph = gl_bargraph
 
             NewChart = cfa_bargraph(
                 data1=stock_df["Difference in %"].tolist(),
-                yaxis_labels= stock_df.index.tolist(),
+                yaxis_labels=stock_df.index.tolist(),
                 y_label="Stocks",
                 top_label="Cash Futures Arbitrage",
                 barcolor="BOTH",
@@ -2945,11 +3002,10 @@ class Cash_Futures_Arbitrage(APIView):
             ####################### chartjs ########################
             return Response(json.loads(NewChart.get()))
 
-    def get(self , request):
-        post_data = {   "expiry":"CURRENT" ,
-                        "chart" : "true"
-        }
+    def get(self, request):
+        post_data = {"expiry": "CURRENT", "chart": "true"}
         return Response(post_data)
+
 
 class Cumulative_Prices(APIView):
     def post(self , request):
