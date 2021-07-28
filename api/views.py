@@ -2892,15 +2892,11 @@ class Cash_Futures_Arbitrage(APIView):
         stock_df["exchange_name"] = stock_df.apply(lambda x:"NSE:"+x["name"],axis=1)
 
         stock_df.reset_index(drop=True,inplace=True)
-        breakpoint()
+
         stock_df = stock_df.join(pd.DataFrame(kf.kite.quote(stock_df["exchange_name"].tolist())).transpose()['last_price'],on="exchange_name",how="inner",rsuffix="_stocks")
-        breakpoint()
-        
-        breakpoint()
+
         stock_df = stock_df.join(pd.DataFrame(kf.kite.quote(stock_df["exchange_tradingsymbol"].tolist())).transpose()['last_price'],on="exchange_tradingsymbol",how="inner",rsuffix="_futures")
-        breakpoint()
         
-        breakpoint()
         stock_df = stock_df.apply(lambda x:[
             x['name'],
             x['last_price_stocks'],
@@ -2915,20 +2911,19 @@ class Cash_Futures_Arbitrage(APIView):
             x['last_price_futures'],
             None,
             None],axis=1)
-        breakpoint()
+
         stock_df = pd.DataFrame(stock_df.to_list(),columns = ["FNO Stocks","Stock Price",
             "Futures Price","Price Change","Difference in %"])
-        breakpoint()
+
         stock_df.index = stock_df['FNO Stocks']
-        breakpoint()
+
         stock_df.drop(labels=["FNO Stocks"],axis=1,inplace=True)
-        breakpoint()
+
         stock_df = stock_df.round(2)
         stock_df.sort_values(by="Difference in %",ascending=False, inplace=True)
-        breakpoint()
         stock_df = stock_df[~(stock_df["Futures Price"] == 0)]
 
-        breakpoint()
+        # breakpoint()
         if not chart:
             stock_df.fillna("Null",inplace=True)
             return Response(stock_df.to_dict("index"))
