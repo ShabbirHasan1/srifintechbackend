@@ -2893,30 +2893,26 @@ class Cash_Futures_Arbitrage(APIView):
 
         stock_df.reset_index(drop=True,inplace=True)
         breakpoint()
-        stock_df = pd.concat([stock_df,pd.DataFrame(kf.kite.quote(stock_df[
-            "exchange_name"].tolist())).transpose()[
-            'last_price'].reset_index(drop=True)],axis=1)
+        stock_df = stock_df.join(pd.DataFrame(kf.kite.quote(stock_df["exchange_name"].tolist())).transpose()['last_price'],on="exchange_name",how="inner",rsuffix="_stocks")
         breakpoint()
-        stock_df.columns.values[-1] = "stock_price"
+        
         breakpoint()
-        stock_df = pd.concat([stock_df,pd.DataFrame(kf.kite.quote(stock_df[
-            "exchange_tradingsymbol"].tolist())).transpose()[
-            'last_price'].reset_index(drop=True)],axis=1)
+        stock_df = stock_df.join(pd.DataFrame(kf.kite.quote(stock_df["exchange_tradingsymbol"].tolist())).transpose()['last_price'],on="exchange_tradingsymbol",how="inner",rsuffix="_futures")
         breakpoint()
-        stock_df.columns.values[-1] = "futures_price"
+        
         breakpoint()
         stock_df = stock_df.apply(lambda x:[
             x['name'],
-            x['stock_price'],
-            x['futures_price'],
-            x['futures_price'] - x['stock_price'],
-            ((x['futures_price'] - x['stock_price']) / x['stock_price'])*100
+            x['last_price_stocks'],
+            x['last_price_futures'],
+            x['last_price_futures'] - x['last_price_stocks'],
+            ((x['last_price_futures'] - x['last_price_stocks']) / x['last_price_stocks'])*100
         ]
-            if x['stock_price'] !=0 else
+            if x['last_price_stocks'] !=0 else
             [
             x['name'],
-            x['stock_price'],
-            x['futures_price'],
+            x['last_price_stocks'],
+            x['last_price_futures'],
             None,
             None],axis=1)
         breakpoint()
